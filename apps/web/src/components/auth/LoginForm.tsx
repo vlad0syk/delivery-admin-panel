@@ -1,7 +1,8 @@
+import { type FormEvent } from "react"
 import FormInput from "./FormInput"
 import Button from "./Button"
 
-export default function LoginForm({ onSubmit }: { onSubmit?: (e: React.FormEvent) => void }) {
+export default function LoginForm({ onSubmit }: { onSubmit?: (e: FormEvent) => void }) {
   return (
     <form className="space-y-5" onSubmit={e => { e.preventDefault(); onSubmit?.(e) }}>
       <FormInput

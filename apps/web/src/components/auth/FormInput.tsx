@@ -6,10 +6,10 @@ type FormInputProps = InputHTMLAttributes<HTMLInputElement> & {
 }
 
 export default function FormInput({
-  
   label,
   icon,
   id,
+ className = "",
   ...rest
 }: FormInputProps) {
   const generatedId = useId()
@@ -27,7 +27,7 @@ export default function FormInput({
 
         <input
           id={inputId}
-          className="h-11 w-full rounded-lg border border-gray-200 pl-11 pr-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+          className={`h-11 w-full rounded-lg border border-gray-200 pl-11 pr-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 ${className}`}
           {...rest}
         />
       </div>
