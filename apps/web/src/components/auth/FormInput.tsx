@@ -15,7 +15,8 @@ export default function FormInput({
   placeholder,
   icon,
 }: FormInputProps) {
-  const inputId = id ?? useId()
+  const generatedId = useId()
+  const inputId = id ?? generatedId
   return (
     <div className="space-y-2">
       <label htmlFor={inputId} className="text-sm font-medium text-gray-700">

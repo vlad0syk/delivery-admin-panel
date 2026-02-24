@@ -41,7 +41,7 @@ export default function LoginForm() {
           </svg>
         }
       />
-       <Button type="submit"><p>Authenticate</p></Button>
+       <Button type="submit">Authenticate</Button>
     </form>
   )
 }
