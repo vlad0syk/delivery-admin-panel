@@ -1,19 +1,16 @@
-import { useId, type ReactNode } from "react"
+import { useId, type ReactNode, type InputHTMLAttributes } from "react"
 
-type FormInputProps = {
-  id?: string
+type FormInputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string
-  type: string
-  placeholder: string
   icon: ReactNode
 }
 
 export default function FormInput({
-  id,
+  
   label,
-  type,
-  placeholder,
   icon,
+  id,
+  ...rest
 }: FormInputProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId
@@ -30,9 +27,8 @@ export default function FormInput({
 
         <input
           id={inputId}
-          type={type}
-          placeholder={placeholder}
           className="h-11 w-full rounded-lg border border-gray-200 pl-11 pr-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+          {...rest}
         />
       </div>
     </div>
