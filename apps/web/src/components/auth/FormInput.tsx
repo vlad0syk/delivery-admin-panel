@@ -1,5 +1,7 @@
+import { useId } from "react"
 
 type FormInputProps = {
+  id?: string
   label: string
   type: string
   placeholder: string
@@ -7,14 +9,16 @@ type FormInputProps = {
 }
 
 export default function FormInput({
+  id,
   label,
   type,
   placeholder,
   icon,
 }: FormInputProps) {
+  const inputId = id ?? useId()
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-700">
+      <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
         {label}
       </label>
 
@@ -24,6 +28,7 @@ export default function FormInput({
         </span>
 
         <input
+          id={inputId}
           type={type}
           placeholder={placeholder}
           className="h-11 w-full rounded-lg border border-gray-200 pl-11 pr-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"

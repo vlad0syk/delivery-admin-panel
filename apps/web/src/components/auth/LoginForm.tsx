@@ -16,6 +16,7 @@ export default function LoginForm() {
             stroke="currentColor"
             strokeWidth="2"
           >
+            <title>Іконка email</title>
             <path d="M4 6h16v12H4z" />
             <path d="m4 7 8 6 8-6" />
           </svg>
@@ -34,6 +35,7 @@ export default function LoginForm() {
             stroke="currentColor"
             strokeWidth="2"
           >
+            <title>Іконка пароля</title>
             <path d="M16 11V8a4 4 0 0 0-8 0v3" />
             <path d="M6 11h12v10H6z" />
           </svg>
