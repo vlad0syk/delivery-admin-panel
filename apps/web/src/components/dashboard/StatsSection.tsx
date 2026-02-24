@@ -16,7 +16,6 @@ export default function StatsSection()
             <p className="mt-1 text-xl font-bold text-gray-900">XXXX</p>
           </div>
         </div>
-
         <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500">
             <DollarSign className="h-5 w-5" aria-hidden="true" />
