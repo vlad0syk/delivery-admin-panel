@@ -1,11 +1,11 @@
-import { useId } from "react"
+import { useId, type ReactNode } from "react"
 
 type FormInputProps = {
   id?: string
   label: string
   type: string
   placeholder: string
-  icon: React.ReactNode
+  icon: ReactNode
 }
 
 export default function FormInput({

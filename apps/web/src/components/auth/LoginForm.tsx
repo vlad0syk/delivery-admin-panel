@@ -1,9 +1,9 @@
 import FormInput from "./FormInput"
 import Button from "./Button"
 
-export default function LoginForm() {
+export default function LoginForm({ onSubmit }: { onSubmit?: (e: React.FormEvent) => void }) {
   return (
-    <form className="space-y-5">
+    <form className="space-y-5" onSubmit={e => { e.preventDefault(); onSubmit?.(e) }}>
       <FormInput
         label="Administrator Email"
         type="email"
