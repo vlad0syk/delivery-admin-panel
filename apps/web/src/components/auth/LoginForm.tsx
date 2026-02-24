@@ -8,7 +8,10 @@ export default function LoginForm({ onSubmit }: { onSubmit?: (e: FormEvent) => v
       <FormInput
         label="Administrator Email"
         type="email"
-        placeholder="admin@taxflow.com"
+        name="email"
+        autoComplete="email"
+        required
+        placeholder="admin@example.com"
         icon={
           <svg
             viewBox="0 0 24 24"
@@ -27,6 +30,9 @@ export default function LoginForm({ onSubmit }: { onSubmit?: (e: FormEvent) => v
       <FormInput
         label="Password"
         type="password"
+        name="password"
+        autoComplete="current-password"
+        required
         placeholder="••••••••"
         icon={
           <svg

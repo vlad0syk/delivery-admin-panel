@@ -9,7 +9,7 @@ export default function FormInput({
   label,
   icon,
   id,
- className = "",
+  className = "",
   ...rest
 }: FormInputProps) {
   const generatedId = useId()
