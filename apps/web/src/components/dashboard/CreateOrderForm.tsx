@@ -9,7 +9,9 @@ export default function CreateOrderForm()
       <label className="mt-3 block text-sm font-semibold text-gray-700">
         Latitude
         <input
-          type="text"
+         type="number"
+         inputMode="decimal"
+         step="any"
           className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 outline-none transition focus:border-blue-300"
         />
       </label>
@@ -17,7 +19,9 @@ export default function CreateOrderForm()
       <label className="mt-3 block text-sm font-semibold text-gray-700">
         Longitude
         <input
-          type="text"
+          type="number"
+          inputMode="decimal"
+          step="any"
           className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 outline-none transition focus:border-blue-300"
         />
       </label>
@@ -25,7 +29,10 @@ export default function CreateOrderForm()
       <label className="mt-3 block text-sm font-semibold text-gray-700">
         Subtotal ($)
         <input
-          type="text"
+         type="number"
+         inputMode="decimal"
+         min="0"
+         step="0.01"
           className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 outline-none transition focus:border-blue-300"
         />
       </label>
