@@ -66,9 +66,7 @@ const TOTAL_RESULTS = 1247
 const PER_PAGE = 10
 const TOTAL_PAGES = Math.ceil(TOTAL_RESULTS / PER_PAGE)
 
-export default function OrdersTable() {
-  const [page, setPage] = useState(1)
-
+function useOrdersPagination(page: number) {
   const paginatedOrders = useMemo(() => {
     const startIndex = (page - 1) * PER_PAGE
     const endIndex = Math.min(startIndex + PER_PAGE, TOTAL_RESULTS)
@@ -91,6 +89,13 @@ export default function OrdersTable() {
     return { start, end }
   }, [page])
 
+  return { paginatedOrders, rangeText }
+}
+
+export default function OrdersTable() {
+  const [page, setPage] = useState(1)
+  const { paginatedOrders, rangeText } = useOrdersPagination(page)
+
   return (
     <section className="mx-auto mb-5 mt-6 w-full max-w-300 px-6">
       <div className="rounded-xl border border-gray-200 bg-white">
@@ -101,9 +106,13 @@ export default function OrdersTable() {
             <input
               type="text"
               placeholder="Search orders..."
+              aria-label="Search orders"
               className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none sm:w-64"
             />
-            <select className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none sm:w-44">
+            <select
+              aria-label="Filter by jurisdiction"
+              className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none sm:w-44"
+            >
               <option>All Jurisdictions</option>
             </select>
           </div>

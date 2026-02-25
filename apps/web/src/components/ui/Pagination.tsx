@@ -14,7 +14,12 @@ export default function Pagination({
   totalPages,
   onPageChange,
   className = "",
-}: PaginationProps) {
+}: PaginationProps)
+{
+ if (totalPages < 1)
+ {
+   return null
+ }
   const baseBtn =
     "flex h-9 min-w-9 items-center justify-center rounded border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:text-gray-300"
 
@@ -53,6 +58,7 @@ export default function Pagination({
     <div className={`flex items-center gap-1 ${className}`}>
       <button
         className={baseBtn}
+        type="button"
         disabled={currentPage === 1}
         aria-label="Previous page"
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
@@ -81,6 +87,7 @@ export default function Pagination({
             className={`${baseBtn} ${
               isActive ? "border-blue-500 bg-blue-500 text-white" : ""
             }`}
+            type="button"
             aria-current={isActive ? "page" : undefined}
             onClick={() => onPageChange(number)}
           >
@@ -91,6 +98,7 @@ export default function Pagination({
 
       <button
         className={baseBtn}
+        type="button"
         disabled={currentPage === totalPages}
         aria-label="Next page"
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
