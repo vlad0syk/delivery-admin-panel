@@ -1,18 +1,7 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import './app/auth/LoginPage'
-import LoginPage from './app/auth/LoginPage'
+import AdminPage from "./app/admin/AdminPage"
 
 function App() {
-  
-
-  return (
-    <>
-    <LoginPage />
-    </>
-  )
+  return <AdminPage />
 }
 
 export default App

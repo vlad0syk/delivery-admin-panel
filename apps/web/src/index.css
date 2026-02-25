@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f3f4f6; /* Tailwind gray-100 */
+  overflow: clip;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  height: 100%;
+}
