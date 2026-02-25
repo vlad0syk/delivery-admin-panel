@@ -1,7 +1,7 @@
 import AdminPage from "./app/admin/AdminPage"
 
 function App() {
-  return <AdminPage />
+  return <AdminPage />;
 }
 
-export default App
+export default App;
