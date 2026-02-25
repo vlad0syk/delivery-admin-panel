@@ -12,7 +12,7 @@ export default function LoginPage() {
           >
             <LoginForm />
           </AuthCard>
-          <p className="mt-5 text-center text-xs text-gray-400">Unauthorized access is prohibited.<br />System activity is monitored.</p>
+          {/* <p className="mt-5 text-center text-xs text-gray-400">Unauthorized access is prohibited.<br />System activity is monitored.</p> */}
       </AuthLayout>
     </div>
   )
