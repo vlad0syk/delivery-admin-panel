@@ -19,7 +19,13 @@ export class OrdersController {
 
   @Post()
   async createOrder(@Body() payload: CreateOrderDto) {
-    return this.ordersService.createOrder(payload);
+    try {
+      console.log(payload);
+      return this.ordersService.createOrder(payload);
+    } catch (error) {
+      console.error(error);
+      throw new BadRequestException(error.message);
+    }
   }
 
   @Get()

@@ -1,7 +1,7 @@
 export class CreateOrderDto {
   id?: string;
-  longitude!: number | string;
-  latitude!: number | string;
+  longitude!: number;
+  latitude!: number;
   timestamp!: string;
-  subtotal!: number | string;
+  subtotal!: number;
 }

@@ -208,8 +208,8 @@ export class OrdersService implements OnModuleInit {
     }
 
     let firstDataRowIndex = 0;
-    const firstRowParts = this.splitCsvLine(rows[0].line).map((value) => value.trim());
-    if (this.isCsvHeader(firstRowParts)) {
+    const firstRow = this.splitCsvLine(rows[0].line);
+    if (firstRow && this.isCsvHeader(firstRow)) {
       firstDataRowIndex = 1;
     }
 
@@ -221,8 +221,8 @@ export class OrdersService implements OnModuleInit {
       const { line, lineNumber } = rows[i];
       processed += 1;
 
-      const parts = this.splitCsvLine(line).map((value) => value.trim());
-      if (parts.length !== 5) {
+      const rowDto = this.splitCsvLine(line);
+      if (!rowDto) {
         errors.push({
           line: lineNumber,
           message: 'Invalid row format. Expected 5 columns: id,longitude,latitude,timestamp,subtotal',
@@ -230,15 +230,13 @@ export class OrdersService implements OnModuleInit {
         continue;
       }
 
-      const [id, longitude, latitude, timestamp, subtotal] = parts;
-
       try {
-        await this.createOrderInternal({ id, longitude, latitude, timestamp, subtotal }, true);
+        await this.createOrderInternal(rowDto, true);
         imported += 1;
       } catch (error) {
         errors.push({
           line: lineNumber,
-          id: id || undefined,
+          id: rowDto.id || undefined,
           message: this.toErrorMessage(error),
         });
       }
@@ -597,7 +595,11 @@ export class OrdersService implements OnModuleInit {
     return new Prisma.Decimal(value.toFixed(2));
   }
 
-  private splitCsvLine(line: string) {
+  /**
+   * Parses a CSV line into CreateOrderDto (string values).
+   * Returns null if the line does not have exactly 5 columns.
+   */
+  private splitCsvLine(line: string): CreateOrderDto | null {
     const values: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -630,17 +632,21 @@ export class OrdersService implements OnModuleInit {
     }
 
     values.push(current);
-    return values;
-  }
 
-  private isCsvHeader(parts: string[]) {
-    if (parts.length !== 5) {
-      return false;
+    if (values.length !== 5) {
+      return null;
     }
 
-    const [id, longitude, latitude, timestamp, subtotal] = parts.map((value) =>
-      value.toLowerCase(),
-    );
+    const [id, longitude, latitude, timestamp, subtotal] = values.map((v) => v.trim());
+    return { id, longitude: Number(longitude), latitude: Number(latitude), timestamp, subtotal: Number(subtotal) };
+  }
+
+  private isCsvHeader(row: CreateOrderDto) {
+    const id = (row.id ?? '').toLowerCase();
+    const longitude = String(row.longitude ?? '').toLowerCase();
+    const latitude = String(row.latitude ?? '').toLowerCase();
+    const timestamp = String(row.timestamp ?? '').toLowerCase();
+    const subtotal = String(row.subtotal ?? '').toLowerCase();
     return (
       id === 'id' &&
       longitude === 'longitude' &&
