@@ -6,6 +6,10 @@ import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [PrismaModule, OrdersModule],
+import { AuthModule } from './auth/auth.module';
+
+@Module({
+  imports: [AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })
