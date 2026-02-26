@@ -6,7 +6,7 @@ export default function LoginForm({ onSubmit }: { onSubmit?: (e: FormEvent) => v
   return (
     <form className="space-y-5" onSubmit={e => { e.preventDefault(); onSubmit?.(e) }}>
       <FormInput
-        label="Administrator Email"
+        label="Email"
         type="email"
         name="email"
         autoComplete="email"
@@ -48,7 +48,7 @@ export default function LoginForm({ onSubmit }: { onSubmit?: (e: FormEvent) => v
           </svg>
         }
       />
-       <Button type="submit">Authenticate</Button>
+       <Button type="submit">Log In</Button>
     </form>
   )
 }
