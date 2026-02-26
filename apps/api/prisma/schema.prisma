@@ -7,8 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id       String @id @default(uuid())
-  email    String @unique
-  password String
+model Order {
+  id           String   @id @default(uuid())
+  location     Location @relation(fields: [locationId], references: [id])
+  locationId   String
+  subtotal     Decimal
+  total_amount Decimal
+  tax_amount   Decimal
+  timestamp    DateTime
+}
+
+model Location {
+  id              String        @id @default(uuid())
+  latitude        Float
+  longitude       Float
+  taxRateRegion   TaxRateRegion @relation(fields: [taxRateRegionId], references: [id])
+  taxRateRegionId String
+}
+
+model TaxRateRegion {
+  id             String     @id @default(uuid())
+  name           String
+  composite_rate Float
+  state_rate     Float
+  county_rate    Float
+  city_rate      Float
+  special_rate   Float
+  jurisdictions  String[]
 }
