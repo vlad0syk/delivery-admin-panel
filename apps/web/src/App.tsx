@@ -1,12 +1,7 @@
-import './app/auth/LoginPage'
-import LoginPage from './app/auth/LoginPage'
+import AdminPage from "./app/admin/AdminPage"
 
 function App() {
-  return (
-    <>
-      <LoginPage />
-    </>
-  )
+  return <AdminPage />;
 }
 
-export default App
+export default App;
