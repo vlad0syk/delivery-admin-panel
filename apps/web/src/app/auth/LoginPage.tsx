@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { useNavigate } from "react-router-dom"
+import { Navigate } from "react-router-dom"
 import axios from "axios"
 import AuthLayout from "./AuthLayout"
 import AuthCard from "../../components/auth/AuthCard"
@@ -8,10 +8,13 @@ import AuthHeader from "../../components/auth/AuthHeader"
 import { useAuth } from "../../provider/authProvider"
 
 export default function LoginPage() {
-  const { setToken } = useAuth()
-  const navigate = useNavigate()
+  const { login, isAuthenticated } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   const handleLogin = async (e: FormEvent) => {
     const form = e.target as HTMLFormElement
@@ -23,9 +26,8 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { data } = await axios.post("/api/auth/login", { email, password })
-      setToken(data.access_token)
-      navigate("/dashboard", { replace: true })
+      await axios.post("/api/auth/login", { email, password })
+      login()
     } catch (err: any) {
       setError(err.response?.data?.message ?? "Login failed. Please try again.")
     } finally {

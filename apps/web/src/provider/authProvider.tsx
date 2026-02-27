@@ -2,38 +2,40 @@ import axios from "axios";
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import type { ReactNode } from "react";
 
+axios.defaults.withCredentials = true;
+
 interface AuthContextType {
-    token: string | null;
-    setToken: (token: string | null) => void;
+    isAuthenticated: boolean;
+    isLoading: boolean;
+    login: () => void;
+    logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [token, setToken_] = useState<string | null>(localStorage.getItem("token"));
-
-    const setToken = useCallback((newToken: string | null) => {
-        setToken_(newToken);
-    }, []);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (token) {
-            axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-            localStorage.setItem("token", token);
-        }
-        else {
-            delete axios.defaults.headers.common["Authorization"];
-            localStorage.removeItem("token");
-        }
-    }, [token]);
+        axios.get("/api/auth/me")
+            .then(() => setIsAuthenticated(true))
+            .catch(() => setIsAuthenticated(false))
+            .finally(() => setIsLoading(false));
+    }, []);
+
+    const login = useCallback(() => setIsAuthenticated(true), []);
+
+    const logout = useCallback(() => {
+        axios.post("/api/auth/logout")
+            .catch(() => {})
+            .finally(() => setIsAuthenticated(false));
+    }, []);
 
     const contextValue = useMemo(
-        () => ({
-            token, 
-            setToken
-        }),
-        [token]
-    )
+        () => ({ isAuthenticated, isLoading, login, logout }),
+        [isAuthenticated, isLoading, login, logout],
+    );
 
     return (
         <AuthContext.Provider value={contextValue}>

@@ -1,14 +1,7 @@
-import { useNavigate } from "react-router-dom"
 import { useAuth } from "../../provider/authProvider"
 
 export default function Header() {
-  const { setToken } = useAuth()
-  const navigate = useNavigate()
-
-  const handleLogout = () => {
-    setToken(null)
-    navigate("/login", { replace: true })
-  }
+  const { logout } = useAuth()
 
   return (
   <header className="w-full bg-white border-b border-gray-200">
@@ -26,7 +19,7 @@ export default function Header() {
         </span>
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={logout}
           className="font-medium text-gray-400 hover:text-gray-700 transition-colors whitespace-nowrap"
         >
           Logout

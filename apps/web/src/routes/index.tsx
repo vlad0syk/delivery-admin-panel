@@ -5,7 +5,11 @@ import AdminPage from "@/app/admin/AdminPage";
 import LoginPage from "@/app/auth/LoginPage";
 
 const Routes = () => {
-    const { token } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return null;
+    }
 
     const routesForAuthenticatedOnly = [
         {
@@ -33,10 +37,10 @@ const Routes = () => {
 
     const router = createBrowserRouter([
         ...routesForNotAuthenticatedOnly,
-        ...(token ? routesForAuthenticatedOnly : []),
+        ...(isAuthenticated ? routesForAuthenticatedOnly : []),
         {
           path: "*",
-          element: <Navigate to={token ? "/dashboard" : "/login"} replace />,
+          element: <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />,
         },
     ]); 
 
