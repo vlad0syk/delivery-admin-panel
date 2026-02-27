@@ -84,10 +84,12 @@ function useOrdersPagination(page: number) {
   }, [page])
 
   const rangeText = useMemo(() => {
-    const start = (page - 1) * PER_PAGE + 1
-    const end = Math.min(page * PER_PAGE, TOTAL_RESULTS)
-    return { start, end }
-  }, [page])
+    const first = paginatedOrders[0]?.orderId ?? "#0"
+    const last = paginatedOrders[paginatedOrders.length - 1]?.orderId ?? "#0"
+    const topId = Number(first.replace("#", ""))
+    const bottomId = Number(last.replace("#", ""))
+    return { topId, bottomId }
+  }, [paginatedOrders])
 
   return { paginatedOrders, rangeText }
 }
@@ -135,6 +137,9 @@ export default function OrdersTable() {
         </div>
 
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p className="whitespace-nowrap text-sm text-gray-600">
+            Showing {rangeText.bottomId} to {rangeText.topId} of {TOTAL_RESULTS} results
+          </p>
           <Pagination
             currentPage={page}
             totalPages={TOTAL_PAGES}
