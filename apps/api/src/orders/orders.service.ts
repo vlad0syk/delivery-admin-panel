@@ -5,7 +5,7 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
-import { Prisma, TaxRateRegion } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { ImportOrdersResult, ImportOrderRowError } from './dto/import-orders.dto';
+import { JurisdictionDto } from './dto/jurisdiction.dto';
 import { PDFParse } from 'pdf-parse';
 
 const ORDERS_ASSETS_DIR = 'assets';
@@ -63,16 +64,26 @@ type OrderWithLocation = Prisma.OrderGetPayload<{
   include: {
     location: {
       include: {
-        taxRateRegion: true;
+        taxRateRegion: {
+          include: {
+            jurisdictions: true;
+          };
+        };
       };
     };
+  };
+}>;
+
+type TaxRateRegionWithJurisdictions = Prisma.TaxRateRegionGetPayload<{
+  include: {
+    jurisdictions: true;
   };
 }>;
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private countyFeatures: CountyFeature[] = [];
-  private taxRegionsByCounty = new Map<string, TaxRateRegion>();
+  private taxRegionsByCounty = new Map<string, TaxRateRegionWithJurisdictions>();
   private bootstrapPromise: Promise<void> | null = null;
 
   constructor(private prisma: PrismaService) {}
@@ -177,7 +188,11 @@ export class OrdersService implements OnModuleInit {
         include: {
           location: {
             include: {
-              taxRateRegion: true,
+              taxRateRegion: {
+                include: {
+                  jurisdictions: true,
+                },
+              },
             },
           },
         },
@@ -306,7 +321,11 @@ export class OrdersService implements OnModuleInit {
         include: {
           location: {
             include: {
-              taxRateRegion: true,
+              taxRateRegion: {
+                include: {
+                  jurisdictions: true,
+                },
+              },
             },
           },
         },
@@ -361,40 +380,109 @@ export class OrdersService implements OnModuleInit {
   }
 
   private async syncTaxRateRegions(taxRates: TaxRateDataset) {
-    const existingRegions = await this.prisma.taxRateRegion.findMany();
+    const existingRegions = await this.prisma.taxRateRegion.findMany({
+      include: {
+        jurisdictions: true,
+      },
+    });
     const existingByName = new Map(existingRegions.map((region) => [region.name, region]));
-    const updatedTaxRegionsByCounty = new Map<string, TaxRateRegion>();
+    const updatedTaxRegionsByCounty = new Map<string, TaxRateRegionWithJurisdictions>();
 
     for (const [countyName, taxRate] of Object.entries(taxRates)) {
       const trimmedCountyName = countyName.trim();
       const cityRate = this.roundRate(
         taxRate.composite_rate - taxRate.state_rate - taxRate.county_rate - taxRate.special_rate,
       );
+      const normalizedCityRate = Math.max(0, cityRate);
+      const jurisdictions = this.buildJurisdictions(trimmedCountyName, {
+        ...taxRate,
+        city_rate: normalizedCityRate,
+      });
 
-      const payload = {
+      const regionPayload = {
         name: trimmedCountyName,
         composite_rate: taxRate.composite_rate,
         state_rate: taxRate.state_rate,
         county_rate: taxRate.county_rate,
-        city_rate: Math.max(0, cityRate),
+        city_rate: normalizedCityRate,
         special_rate: taxRate.special_rate,
-        jurisdictions: [trimmedCountyName, `${trimmedCountyName} County`],
       };
 
       const existing = existingByName.get(trimmedCountyName);
       const savedRegion = existing
         ? await this.prisma.taxRateRegion.update({
             where: { id: existing.id },
-            data: payload,
+            data: {
+              ...regionPayload,
+              jurisdictions: {
+                deleteMany: {},
+                create: jurisdictions.map((jurisdiction) => ({
+                  name: jurisdiction.name,
+                  type: jurisdiction.type,
+                  rate: jurisdiction.rate,
+                })),
+              },
+            },
+            include: {
+              jurisdictions: true,
+            },
           })
         : await this.prisma.taxRateRegion.create({
-            data: payload,
+            data: {
+              ...regionPayload,
+              jurisdictions: {
+                create: jurisdictions.map((jurisdiction) => ({
+                  name: jurisdiction.name,
+                  type: jurisdiction.type,
+                  rate: jurisdiction.rate,
+                })),
+              },
+            },
+            include: {
+              jurisdictions: true,
+            },
           });
 
       updatedTaxRegionsByCounty.set(this.normalizeCountyName(trimmedCountyName), savedRegion);
     }
 
     this.taxRegionsByCounty = updatedTaxRegionsByCounty;
+  }
+
+  private buildJurisdictions(
+    countyName: string,
+    rates: TaxRateRaw & { city_rate: number },
+  ): JurisdictionDto[] {
+    const jurisdictions: JurisdictionDto[] = [
+      {
+        name: 'New York State',
+        type: 'state',
+        rate: this.roundRate(rates.state_rate),
+      },
+      {
+        name: `${countyName} County`,
+        type: 'county',
+        rate: this.roundRate(rates.county_rate),
+      },
+    ];
+
+    if (rates.city_rate > 0) {
+      jurisdictions.push({
+        name: `${countyName} City`,
+        type: 'city',
+        rate: this.roundRate(rates.city_rate),
+      });
+    }
+
+    if (rates.special_rate > 0) {
+      jurisdictions.push({
+        name: 'Metropolitan Commuter Transportation District',
+        type: 'special',
+        rate: this.roundRate(rates.special_rate),
+      });
+    }
+
+    return jurisdictions;
   }
 
   private async extractPublication718Text(buffer: Buffer): Promise<string> {
