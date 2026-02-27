@@ -1,7 +1,7 @@
 import Header from "@/components/layout/Header"
 import ImportSection from "@/components/dashboard/ImportSection"
 import CreateOrderForm from "@/components/dashboard/CreateOrderForm"
-import OrdersSection from "@/components/dashboard/OrdersTable"
+import OrdersTable from "@/components/dashboard/OrdersTable"
 import StatsSection from "@/components/dashboard/StatsSection"
 
 export default function AdminPage() {
@@ -24,7 +24,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <OrdersSection />
+        <OrdersTable />
       </main>
 
       <footer className="h-12 w-full bg-gray-100" />
