@@ -1,0 +1,38 @@
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { useAuth } from "@/provider/authProvider";
+import { ProtectedRoute } from "./ProtectedRoute";
+import AdminPage from "@/app/admin/AdminPage";
+import LoginPage from "@/app/auth/LoginPage";
+
+const Routes = () => {
+    const { token } = useAuth();
+
+    const routesForAuthenticatedOnly = [
+        {
+          path: "/",
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: "/dashboard",
+              element: <AdminPage />,
+            },
+          ],
+        },
+    ];
+
+    const routesForNotAuthenticatedOnly = [
+        {
+          path: "/login",
+          element: <LoginPage />,
+        },
+    ];
+
+    const router = createBrowserRouter([
+        ...routesForNotAuthenticatedOnly,
+        ...(token ? routesForAuthenticatedOnly : []),
+    ]); 
+
+    return <RouterProvider router={router} />;
+}
+
+export default Routes;
