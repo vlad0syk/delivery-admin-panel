@@ -64,19 +64,19 @@ const baseOrders: OrderData[] = [
 ]
 
 const TOTAL_RESULTS = 1247
-const PER_PAGE = 10
+const PER_PAGE = 5
 const TOTAL_PAGES = Math.ceil(TOTAL_RESULTS / PER_PAGE)
 const HIGHEST_ORDER_ID = 1247
 
 function useOrdersPagination(page: number) {
   const paginatedOrders = useMemo(() => {
-    const startIndex = (page - 1) * PER_PAGE
-    const endIndex = Math.min(startIndex + PER_PAGE, TOTAL_RESULTS)
+    const startIndex = (page - 1) * PER_PAGE //0
+    const endIndex = Math.min(startIndex + PER_PAGE, TOTAL_RESULTS) //
     const rows: OrderData[] = []
 
-    for (let i = startIndex; i < endIndex; i++) {
-      const template = baseOrders[i % baseOrders.length]
-      const orderNumber = 1247 - i
+    for (let i = endIndex; i > startIndex; i--) {
+      const template = baseOrders[i % baseOrders.length] 
+      const orderNumber = i
       rows.push({
         ...template,
         orderId: `#${orderNumber}`,
@@ -158,7 +158,7 @@ export default function OrdersTable() {
         </div>
 
         <div className="md:hidden space-y-3 p-4">
-             {paginatedOrders.map((order) => (
+             {visibleOrders.map((order) => (
                 <MobileOrderCard key={order.orderId} {...order} />
              ))}
         </div>
