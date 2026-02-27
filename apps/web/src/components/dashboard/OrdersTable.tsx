@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import OrderRow from "./OrderRow"
 import Pagination from "../ui/Pagination"
+import MobileOrderCard from "./MobileOrderCard"
 
 type OrderData = {
   orderId: string
@@ -118,22 +119,30 @@ export default function OrdersTable() {
           </div>
         </div>
 
-        <div className="grid grid-cols-[1.1fr_2fr_repeat(4,minmax(0,1fr))_1.4fr] items-center border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 md:px-5">
-          <div>Order ID</div>
-          <div>Location</div>
-          <div>Subtotal</div>
-          <div>Tax Rate</div>
-          <div>Tax Amount</div>
-          <div>Total</div>
-          <div>Actions</div>
+        <div className="md:hidden space-y-3 p-4">
+             {paginatedOrders.map((order) => (
+                <MobileOrderCard key={order.orderId} {...order} />
+             ))}
         </div>
+
+        <div className="hidden md:block">
+          <div className="grid grid-cols-[1.1fr_2fr_repeat(4,minmax(0,1fr))_1.4fr] items-center border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 md:px-5">
+            <div>Order ID</div>
+            <div>Location</div>
+            <div>Subtotal</div>
+            <div>Tax Rate</div>
+            <div>Tax Amount</div>
+            <div>Total</div>
+            <div>Actions</div>
+          </div>
+        
 
         <div>
           {paginatedOrders.map((order) => (
             <OrderRow key={order.orderId} {...order} />
           ))}
         </div>
-
+      </div>
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="text-sm text-gray-600">
             Showing {rangeText.start} to {rangeText.end} of {TOTAL_RESULTS} results
