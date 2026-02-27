@@ -23,11 +23,7 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors({
-    origin: process.env.WEB_ORIGIN ?? 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+  app.enableCors();
 
 >>>>>>> main
   await app.listen(process.env.PORT ?? 3000);

@@ -1,0 +1,106 @@
+
+> api@0.0.1 start:dev
+> nest start --watch
+
+[2J[3J[H[[90m12:30:40 AM[0m] Starting compilation in watch mode...
+
+[[90m12:30:41 AM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +493ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +3ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOrdersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOrdersController {/orders}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/orders, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/orders, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/orders/import, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 4958  - [39m02/28/2026, 12:30:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +1ms[39m
+/Users/mac/Desktop/projects/delivery-admin-panel/node_modules/@prisma/client/src/runtime/RequestHandler.ts:228
+      throw new PrismaClientKnownRequestError(message, {
+            ^
+
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.taxRateRegion.findMany()` invocation in
+/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/src/orders/orders.service.ts:383:61
+
+  380 }
+  381 
+  382 private async syncTaxRateRegions(taxRates: TaxRateDataset) {
+→ 383   const existingRegions = await this.prisma.taxRateRegion.findMany(
+The table `public.Jurisdiction` does not exist in the current database.
+    at ei.handleRequestError (/Users/mac/Desktop/projects/delivery-admin-panel/node_modules/@prisma/client/src/runtime/RequestHandler.ts:228:13)
+    at ei.handleAndLogRequestError (/Users/mac/Desktop/projects/delivery-admin-panel/node_modules/@prisma/client/src/runtime/RequestHandler.ts:174:12)
+    at ei.request (/Users/mac/Desktop/projects/delivery-admin-panel/node_modules/@prisma/client/src/runtime/RequestHandler.ts:143:12)
+    at async a (/Users/mac/Desktop/projects/delivery-admin-panel/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:833:24)
+    at async OrdersService.syncTaxRateRegions (/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/src/orders/orders.service.ts:383:29)
+    at async OrdersService.bootstrap (/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/src/orders/orders.service.ts:379:5)
+    at async OrdersService.ensureBootstrap (/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/src/orders/orders.service.ts:348:5)
+    at async OrdersService.onModuleInit (/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/src/orders/orders.service.ts:92:5)
+    at async Promise.all (index 0)
+    at async callModuleInitHook (/Users/mac/Desktop/projects/delivery-admin-panel/node_modules/@nestjs/core/hooks/on-module-init.hook.js:43:5) {
+  code: 'P2021',
+  meta: { modelName: 'TaxRateRegion', table: 'public.Jurisdiction' },
+  clientVersion: '6.19.2'
+}
+
+Node.js v24.11.1
+
+> api@0.0.1 start:dev
+> nest start --watch
+
+[2J[3J[H[[90m12:32:11 AM[0m] File change detected. Starting incremental compilation...
+
+[[90m12:32:11 AM[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m12:32:12 AM[0m] Starting compilation in watch mode...
+
+node:internal/modules/cjs/loader:1424
+  throw err;
+  ^
+
+Error: Cannot find module './dto/create-order.dto'
+Require stack:
+- /Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/orders/orders.controller.js
+- /Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/orders/orders.module.js
+- /Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/app.module.js
+- /Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/main.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1421:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+    at Module._load (node:internal/modules/cjs/loader:1227:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/src/orders/orders.controller.ts:13:1)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/orders/orders.controller.js',
+    '/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/orders/orders.module.js',
+    '/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/app.module.js',
+    '/Users/mac/Desktop/projects/delivery-admin-panel/apps/api/dist/src/main.js'
+  ]
+}
+
+Node.js v24.11.1
+[[90m12:32:13 AM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +519ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +6ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOrdersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +4ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOrdersController {/orders}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/orders, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/orders, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/orders/import, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6295  - [39m02/28/2026, 12:32:14 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +283ms[39m
