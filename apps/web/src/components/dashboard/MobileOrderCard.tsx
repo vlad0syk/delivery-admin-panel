@@ -6,6 +6,7 @@ type OrderRowProps = {
   taxRate: string
   taxAmount: string
   total: string
+  onViewDetails: () => void
 }
 
 export default function MobileOrderCard({
@@ -16,6 +17,7 @@ export default function MobileOrderCard({
   taxRate,
   taxAmount,
   total,
+  onViewDetails,
 }: OrderRowProps) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -26,7 +28,11 @@ export default function MobileOrderCard({
           <div className="text-xs text-gray-500">{locationLine2}</div>
         </div>
 
-        <button className="text-sm font-semibold text-blue-600 whitespace-nowrap">
+        <button
+          type="button"
+          onClick={onViewDetails}
+          className="whitespace-nowrap text-sm font-semibold text-blue-600"
+        >
           View Details
         </button>
       </div>
