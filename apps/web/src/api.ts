@@ -126,4 +126,9 @@ export const ORDERS_UPDATED_EVENT = "orders:updated"
 
 export function notifyOrdersUpdated() {
   window.dispatchEvent(new Event(ORDERS_UPDATED_EVENT))
+<<<<<<< HEAD
 }
+=======
+}
+
+>>>>>>> 27a38c17ccd8c61a90ca2957964cca1cf8bf656a
