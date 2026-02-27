@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import OrderRow from "./OrderRow"
 import Pagination from "../ui/Pagination"
 import MobileOrderCard from "./MobileOrderCard"
+import { fetchOrders, ORDERS_UPDATED_EVENT } from "@/api"
 
 type OrderData = {
   orderId: string
@@ -15,120 +16,106 @@ type OrderData = {
   total: string
 }
 
-const baseOrders: OrderData[] = [
-  {
-    orderId: "#1247",
-    locationLine1: "40.7580, -73.9855",
-    locationLine2: "Manhattan, NY",
-    subtotal: "$100.00",
-    taxRate: "8.875%",
-    taxAmount: "$8.88",
-    total: "$108.88",
-  },
-  {
-    orderId: "#1246",
-    locationLine1: "40.6782, -73.9442",
-    locationLine2: "Brooklyn, NY",
-    subtotal: "$125.50",
-    taxRate: "8.875%",
-    taxAmount: "$11.14",
-    total: "$136.64",
-  },
-  {
-    orderId: "#1245",
-    locationLine1: "40.7489, -73.9680",
-    locationLine2: "Queens, NY",
-    subtotal: "$89.99",
-    taxRate: "8.875%",
-    taxAmount: "$7.99",
-    total: "$97.98",
-  },
-  {
-    orderId: "#1244",
-    locationLine1: "40.8448, -73.8648",
-    locationLine2: "Bronx, NY",
-    subtotal: "$150.00",
-    taxRate: "8.875%",
-    taxAmount: "$13.31",
-    total: "$163.31",
-  },
-  {
-    orderId: "#1243",
-    locationLine1: "40.5795, -74.1502",
-    locationLine2: "Staten Island, NY",
-    subtotal: "$75.25",
-    taxRate: "8.875%",
-    taxAmount: "$6.68",
-    total: "$81.93",
-  },
-]
-
-const TOTAL_RESULTS = 1247
 const PER_PAGE = 10
-const TOTAL_PAGES = Math.ceil(TOTAL_RESULTS / PER_PAGE)
-const HIGHEST_ORDER_ID = 1247
 
-function useOrdersPagination(page: number) {
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (page - 1) * PER_PAGE
-    const endIndex = Math.min(startIndex + PER_PAGE, TOTAL_RESULTS)
-    const rows: OrderData[] = []
+function formatMoney(value: string | number) {
+  const num = typeof value === "string" ? Number(value) : value
+  if (!Number.isFinite(num)) return "$0.00"
+  return `$${num.toFixed(2)}`
+}
 
-    for (let i = startIndex; i < endIndex; i++) {
-      const template = baseOrders[i % baseOrders.length]
-      const orderNumber = 1247 - i
-      rows.push({
-        ...template,
-        orderId: `#${orderNumber}`,
-      })
-    }
-    return rows
-  }, [page])
-
-  return { paginatedOrders }
+function formatTaxRate(rate: number) {
+  const percent = rate * 100
+  return `${percent.toFixed(3)}%`
 }
 
 export default function OrdersTable() {
   const [page, setPage] = useState(1)
   const [searchValue, setSearchValue] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
-  const { paginatedOrders } = useOrdersPagination(page)
+  const [orders, setOrders] = useState<OrderData[]>([])
+  const [totalResults, setTotalResults] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [pageSize, setPageSize] = useState(PER_PAGE)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshToken, setRefreshToken] = useState(0)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(searchValue)
+      setPage(1)
     }, 300)
     return () => window.clearTimeout(timer)
   }, [searchValue])
 
-  const normalizedSearch = debouncedSearch.trim().replace("#", "")
-  const isSearching = normalizedSearch.length > 0
-  const searchId = /^\d+$/.test(normalizedSearch)
-    ? Number(normalizedSearch)
-    : null
-
-  const searchMatch = useMemo(() => {
-    if (!isSearching || searchId === null) return null
-    const index = HIGHEST_ORDER_ID - searchId
-    if (index < 0 || index >= TOTAL_RESULTS) return null
-    const template = baseOrders[index % baseOrders.length]
-    return {
-      ...template,
-      orderId: `#${searchId}`,
+  useEffect(() => {
+    const handleUpdated = () => {
+      setRefreshToken((value) => value + 1)
     }
-  }, [isSearching, searchId])
 
-  const visibleOrders = isSearching ? (searchMatch ? [searchMatch] : []) : paginatedOrders
-  const showPagination = !isSearching || !searchMatch
+    window.addEventListener(ORDERS_UPDATED_EVENT, handleUpdated)
+    return () => window.removeEventListener(ORDERS_UPDATED_EVENT, handleUpdated)
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetchOrders({
+          page,
+          limit: PER_PAGE,
+          id: debouncedSearch.trim() || undefined,
+        })
+
+        setTotalResults(response.pagination.total)
+        setTotalPages(response.pagination.totalPages)
+        setPageSize(response.pagination.limit)
+
+        const mapped: OrderData[] = response.data.map((order) => {
+          const coords = `${order.location.latitude.toFixed(4)}, ${order.location.longitude.toFixed(4)}`
+          return {
+            orderId: order.id,
+            locationLine1: coords,
+            locationLine2: order.location.taxRateRegion.name,
+            subtotal: formatMoney(order.subtotal),
+            taxRate: formatTaxRate(order.location.taxRateRegion.composite_rate),
+            taxAmount: formatMoney(order.tax_amount),
+            total: formatMoney(order.total_amount),
+          }
+        })
+
+        setOrders(mapped)
+      } catch (err) {
+        if (controller.signal.aborted) return
+        setError(err instanceof Error ? err.message : "Failed to load orders")
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    load()
+
+    return () => {
+      controller.abort()
+    }
+  }, [page, debouncedSearch, refreshToken])
 
   const rangeText = useMemo(() => {
-    if (!visibleOrders.length) return { topId: 0, bottomId: 0 }
-    const topId = Number(visibleOrders[0].orderId.replace("#", ""))
-    const bottomId = Number(
-      visibleOrders[visibleOrders.length - 1].orderId.replace("#", "")
-    )
-    return { topId, bottomId }
-  }, [visibleOrders])
+    if (!orders.length) {
+      return { topIndex: 0, bottomIndex: 0 }
+    }
+
+    const start = (page - 1) * pageSize + 1
+    const end = start + orders.length - 1
+    return { topIndex: end, bottomIndex: start }
+  }, [orders.length, page, pageSize])
 
   return (
     <section className="mx-auto mb-5 mt-6 w-full max-w-300 px-6">
@@ -144,7 +131,6 @@ export default function OrdersTable() {
               value={searchValue}
               onChange={(event) => {
                 setSearchValue(event.target.value)
-                if (page !== 1) setPage(1)
               }}
               className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none sm:w-64"
             />
@@ -158,9 +144,9 @@ export default function OrdersTable() {
         </div>
 
         <div className="md:hidden space-y-3 p-4">
-             {paginatedOrders.map((order) => (
-                <MobileOrderCard key={order.orderId} {...order} />
-             ))}
+          {orders.map((order) => (
+            <MobileOrderCard key={order.orderId} {...order} />
+          ))}
         </div>
 
         <div className="hidden md:block">
@@ -176,19 +162,24 @@ export default function OrdersTable() {
         
 
         <div>
-          {visibleOrders.map((order) => (
+          {orders.map((order) => (
             <OrderRow key={order.orderId} {...order} />
           ))}
         </div>
       </div>
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="whitespace-nowrap text-sm text-gray-600">
-            Showing {rangeText.bottomId} to {rangeText.topId} of {TOTAL_RESULTS} results
+            {isLoading
+              ? "Loading orders..."
+              : `Showing ${rangeText.bottomIndex} to ${rangeText.topIndex} of ${totalResults} results`}
           </p>
-          {showPagination ? (
+          {error ? (
+            <p className="text-sm text-red-600">{error}</p>
+          ) : null}
+          {totalPages > 1 ? (
             <Pagination
               currentPage={page}
-              totalPages={TOTAL_PAGES}
+              totalPages={totalPages}
               onPageChange={setPage}
             />
           ) : null}
