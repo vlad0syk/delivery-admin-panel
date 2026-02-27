@@ -40,6 +40,25 @@ model TaxRateRegion {
   county_rate    Float
   city_rate      Float
   special_rate   Float
-  jurisdictions  String[]
+  jurisdictions  Jurisdiction[]
   locations      Location[]
+}
+
+model Jurisdiction {
+  id              String           @id @default(uuid())
+  name            String
+  type            JurisdictionType
+  rate            Float
+  taxRateRegion   TaxRateRegion    @relation(fields: [taxRateRegionId], references: [id], onDelete: Cascade)
+  taxRateRegionId String
+
+  @@index([taxRateRegionId])
+  @@unique([taxRateRegionId, type, name])
+}
+
+enum JurisdictionType {
+  state
+  county
+  city
+  special
 }
