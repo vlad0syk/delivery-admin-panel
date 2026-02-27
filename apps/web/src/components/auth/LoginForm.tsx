@@ -16,7 +16,7 @@ export default function LoginForm({ onSubmit, loading }: LoginFormProps) {
         name="email"
         autoComplete="email"
         required
-        placeholder="admin@example.com"
+        placeholder="test@example.com"
         icon={
           <svg
             viewBox="0 0 24 24"

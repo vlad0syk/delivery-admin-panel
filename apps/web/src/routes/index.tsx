@@ -34,6 +34,10 @@ const Routes = () => {
     const router = createBrowserRouter([
         ...routesForNotAuthenticatedOnly,
         ...(token ? routesForAuthenticatedOnly : []),
+        {
+          path: "*",
+          element: <Navigate to={token ? "/dashboard" : "/login"} replace />,
+        },
     ]); 
 
     return <RouterProvider router={router} />;
