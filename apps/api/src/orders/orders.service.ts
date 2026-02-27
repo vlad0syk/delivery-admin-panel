@@ -7,11 +7,15 @@ import {
 } from '@nestjs/common';
 import { Prisma, TaxRateRegion } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { ImportOrdersResult, ImportOrderRowError } from './dto/import-orders.dto';
+import { PDFParse } from 'pdf-parse';
+
+const ORDERS_ASSETS_DIR = 'assets';
 
 type Position = [number, number];
 
@@ -230,13 +234,15 @@ export class OrdersService implements OnModuleInit {
         continue;
       }
 
+      const dtoWithGeneratedId = { ...rowDto, id: randomUUID() };
+
       try {
-        await this.createOrderInternal(rowDto, true);
+        await this.createOrderInternal(dtoWithGeneratedId, true);
         imported += 1;
       } catch (error) {
         errors.push({
           line: lineNumber,
-          id: rowDto.id || undefined,
+          id: dtoWithGeneratedId.id,
           message: this.toErrorMessage(error),
         });
       }
@@ -324,13 +330,33 @@ export class OrdersService implements OnModuleInit {
   }
 
   private async bootstrap() {
-    const [taxesFile, geoJsonFile] = await Promise.all([
-      this.readOrdersAsset('taxes.json'),
-      this.readOrdersAsset('new-york-counties.geojson'),
-    ]);
-
-    const taxRates = this.parseTaxDataset(taxesFile);
+    const geoJsonFile = await this.readOrdersAsset('new-york-counties.geojson');
     this.countyFeatures = this.parseCountyFeatures(geoJsonFile);
+
+    const taxesPdf = await this.readOrdersAssetBufferOptional('pub718.pdf');
+    let taxRates: TaxRateDataset;
+
+    if (taxesPdf) {
+      try {
+        const fromPdf = await this.parseTaxDatasetFromPdf(taxesPdf);
+        const normalizedFromPdf = new Set(
+          Object.keys(fromPdf).map((k) => this.normalizeCountyName(k)),
+        );
+        const allCountiesCovered = this.countyFeatures.every((c) =>
+          normalizedFromPdf.has(c.normalizedCountyName),
+        );
+        if (allCountiesCovered) {
+          taxRates = fromPdf;
+        } else {
+          taxRates = this.parseTaxDataset(await this.readOrdersAsset('taxes.json'));
+        }
+      } catch {
+        taxRates = this.parseTaxDataset(await this.readOrdersAsset('taxes.json'));
+      }
+    } else {
+      taxRates = this.parseTaxDataset(await this.readOrdersAsset('taxes.json'));
+    }
+
     await this.syncTaxRateRegions(taxRates);
   }
 
@@ -371,6 +397,97 @@ export class OrdersService implements OnModuleInit {
     this.taxRegionsByCounty = updatedTaxRegionsByCounty;
   }
 
+  private async extractPublication718Text(buffer: Buffer): Promise<string> {
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    try {
+      const result = await parser.getText();
+      return result.text;
+    } finally {
+      await parser.destroy();
+    }
+  }
+  
+  private shouldSkipPublication718Line(line: string): boolean {
+    return (
+      /^Publication 718/i.test(line) ||
+      /^\(\d+\/\d+\)$/i.test(line) ||
+      /^New York State Sales and Use Tax/i.test(line) ||
+      /^Rates by Jurisdiction/i.test(line) ||
+      /^Effective March/i.test(line) ||
+      /^The following list includes/i.test(line) ||
+      /^with any county/i.test(line) ||
+      /^and the reporting codes/i.test(line) ||
+      /^New York City comprises/i.test(line) ||
+      /^are also boroughs/i.test(line) ||
+      /^known\./i.test(line) ||
+      /^The counties,/i.test(line) ||
+      /^Reporting codes,/i.test(line) ||
+      /^used for identifying/i.test(line) ||
+      /^\(Postal zones/i.test(line) ||
+      /^the use of ZIP codes/i.test(line) ||
+      /^degree of inaccurate/i.test(line) ||
+      /^Jurisdiction and Rate Lookup/i.test(line) ||
+      /^at www\.tax\.ny\.gov/i.test(line) ||
+      /^jurisdiction,/i.test(line) ||
+      /^and the local jurisdictional/i.test(line) ||
+      /^filing New York State/i.test(line) ||
+      /^For sales tax rates previously/i.test(line) ||
+      /^Publication 718-A/i.test(line) ||
+      /^Any items changed/i.test(line) ||
+      /^boldface italics\./i.test(line) ||
+      /^County or/i.test(line) ||
+      /^Tax rate/i.test(line) ||
+      /^Reporting code/i.test(line) ||
+      /^\*Rates in these jurisdictions include/i.test(line) ||
+      /^\/8% imposed/i.test(line) ||
+      /^New York State only\s+/i.test(line)
+    );
+  }
+  
+  private cleanPublicationCountyLabel(value: string): string {
+    return value
+      .replace(/^\*/, '')
+      .replace(/\s*\([^)]*\)\s*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  
+  private parsePublicationRate(rawRate: string): number {
+    const normalized = rawRate.replace(/\s+/g, '');
+  
+    const unicodeFractions: Record<string, number> = {
+      '⅛': 0.125,
+      '¼': 0.25,
+      '⅜': 0.375,
+      '½': 0.5,
+      '⅝': 0.625,
+      '¾': 0.75,
+      '⅞': 0.875,
+    };
+  
+    const unicodeMatch = normalized.match(/^(\d+)([⅛¼⅜½⅝¾⅞])?$/u);
+    if (unicodeMatch) {
+      const whole = Number(unicodeMatch[1]);
+      const fraction = unicodeMatch[2] ? unicodeFractions[unicodeMatch[2]] : 0;
+      return this.roundRate((whole + fraction) / 100);
+    }
+  
+    const asciiMatch = rawRate.trim().match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (asciiMatch) {
+      const whole = Number(asciiMatch[1]);
+      const numerator = Number(asciiMatch[2]);
+      const denominator = Number(asciiMatch[3]);
+  
+      if (denominator === 0) {
+        throw new Error(`Invalid rate fraction: ${rawRate}`);
+      }
+  
+      return this.roundRate((whole + numerator / denominator) / 100);
+    }
+  
+    throw new Error(`Unable to parse tax rate "${rawRate}" from pub718.pdf`);
+  }
+
   private parseTaxDataset(raw: string): TaxRateDataset {
     let parsed: unknown;
     try {
@@ -384,6 +501,158 @@ export class OrdersService implements OnModuleInit {
     }
 
     return parsed as TaxRateDataset;
+  }
+
+  private async parseTaxDatasetFromPdf(raw: Buffer): Promise<TaxRateDataset> {
+    const text = await this.extractPublication718Text(raw);
+  
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+  
+    const stateRate = 0.04;
+    const mctdRate = 0.00375;
+  
+    const boroughCountyNames = new Set(['bronx', 'kings', 'new york', 'queens', 'richmond']);
+    const mctdCounties = new Set([
+      'bronx',
+      'kings',
+      'new york',
+      'queens',
+      'richmond',
+      'dutchess',
+      'nassau',
+      'orange',
+      'putnam',
+      'rockland',
+      'suffolk',
+      'westchester',
+    ]);
+  
+    const parsedRates = new Map<string, { displayName: string; compositeRate: number }>();
+    let newYorkCityCompositeRate: number | null = null;
+  
+    for (const line of lines) {
+      if (this.shouldSkipPublication718Line(line)) {
+        continue;
+      }
+  
+      if (/\(city\)/i.test(line)) {
+        continue;
+      }
+  
+      if (/see\s+New York City/i.test(line)) {
+        const aliasRaw = line.split(/\s+[—–-]\s+see\s+New York City/i)[0] ?? '';
+        const aliasDisplayName = this.cleanPublicationCountyLabel(aliasRaw);
+        const aliasNormalized = this.normalizeCountyName(aliasDisplayName);
+  
+        if (boroughCountyNames.has(aliasNormalized)) {
+          parsedRates.set(aliasNormalized, {
+            displayName: aliasDisplayName,
+            compositeRate: -1, // тимчасово, нижче підставимо NYC rate
+          });
+        }
+  
+        continue;
+      }
+  
+      const rowMatch = line.match(
+        /^\*?(.+?)(?:\s+[—–-]\s+except)?\s+([0-9]+(?:[⅛¼⅜½⅝¾⅞]|\s+\d+\/\d+)?)\s+\d{4}$/u,
+      );
+  
+      if (!rowMatch) {
+        continue;
+      }
+  
+      const rawName = rowMatch[1];
+      const rawRate = rowMatch[2];
+  
+      const displayName = this.cleanPublicationCountyLabel(rawName);
+      const normalizedCountyName = this.normalizeCountyName(displayName);
+      const compositeRate = this.parsePublicationRate(rawRate);
+  
+      if (normalizedCountyName === 'new york city') {
+        newYorkCityCompositeRate = compositeRate;
+        continue;
+      }
+  
+      // Ігноруємо borough aliases типу Brooklyn / Manhattan / Staten Island,
+      // якщо вони раптом трапились як окремі рядки.
+      if (['brooklyn', 'manhattan', 'staten island'].includes(normalizedCountyName)) {
+        continue;
+      }
+  
+      parsedRates.set(normalizedCountyName, {
+        displayName,
+        compositeRate,
+      });
+    }
+  
+    if (newYorkCityCompositeRate === null) {
+      throw new Error('Unable to find "New York City" rate in pub718.pdf');
+    }
+  
+    for (const countyName of ['Bronx', 'Kings', 'New York', 'Queens', 'Richmond']) {
+      parsedRates.set(this.normalizeCountyName(countyName), {
+        displayName: countyName,
+        compositeRate: newYorkCityCompositeRate,
+      });
+    }
+  
+    const result: TaxRateDataset = {};
+  
+    for (const [normalizedCountyName, entry] of parsedRates.entries()) {
+      if (entry.compositeRate < 0) {
+        entry.compositeRate = newYorkCityCompositeRate;
+      }
+  
+      const specialRate = mctdCounties.has(normalizedCountyName) ? mctdRate : 0;
+      const countyRate = this.roundRate(entry.compositeRate - stateRate - specialRate);
+  
+      result[entry.displayName] = {
+        composite_rate: this.roundRate(entry.compositeRate),
+        state_rate: stateRate,
+        county_rate: countyRate,
+        special_rate: specialRate,
+      };
+    }
+  
+    return result;
+  }
+
+  private getOrdersAssetPaths(fileName: string): string[] {
+    return [
+      join(__dirname, ORDERS_ASSETS_DIR, fileName),
+      join(process.cwd(), 'src', 'orders', ORDERS_ASSETS_DIR, fileName),
+      join(process.cwd(), 'apps', 'api', 'src', 'orders', ORDERS_ASSETS_DIR, fileName),
+    ];
+  }
+
+  private async readOrdersAssetBuffer(fileName: string) {
+    for (const location of this.getOrdersAssetPaths(fileName)) {
+      try {
+        return await readFile(location);
+      } catch {
+        // Try the next known location.
+      }
+    }
+
+    throw new Error(`Unable to locate ${fileName}`);
+  }
+
+  private async readOrdersAssetBufferOptional(fileName: string): Promise<Buffer | null> {
+    const locations = this.getOrdersAssetPaths(fileName);
+
+    for (const location of locations) {
+      try {
+        return await readFile(location);
+      } catch {
+        // Try the next known location.
+      }
+    }
+
+    return null;
   }
 
   private parseCountyFeatures(raw: string): CountyFeature[] {
@@ -668,13 +937,7 @@ export class OrdersService implements OnModuleInit {
   }
 
   private async readOrdersAsset(fileName: string) {
-    const locations = [
-      join(__dirname, fileName),
-      join(process.cwd(), 'src', 'orders', fileName),
-      join(process.cwd(), 'apps', 'api', 'src', 'orders', fileName),
-    ];
-
-    for (const location of locations) {
+    for (const location of this.getOrdersAssetPaths(fileName)) {
       try {
         return await readFile(location, 'utf8');
       } catch {
