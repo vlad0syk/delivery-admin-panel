@@ -36,6 +36,11 @@ export class OrdersController {
     return this.ordersService.getOrders(query);
   }
 
+  @Get('stats')
+  async getStats() {
+    return this.ordersService.getStats();
+  }
+
   @Post('import')
   @UseInterceptors(FileInterceptor('file'))
   async importOrders(@UploadedFile() file?: { buffer: Buffer }) {

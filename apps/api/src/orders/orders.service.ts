@@ -210,6 +210,39 @@ export class OrdersService implements OnModuleInit {
     };
   }
 
+  async getStats() {
+    const [totalOrders, aggregates, lastOrder] = await this.prisma.$transaction([
+      this.prisma.order.count(),
+      this.prisma.order.aggregate({
+        _sum: { tax_amount: true },
+        _avg: { tax_amount: true, subtotal: true },
+      }),
+      this.prisma.order.findFirst({
+        orderBy: { timestamp: 'desc' },
+        select: { timestamp: true },
+      }),
+    ]);
+
+    const totalTaxCollected = aggregates._sum.tax_amount
+      ? Number(aggregates._sum.tax_amount)
+      : 0;
+
+    const avgSubtotal = aggregates._avg.subtotal
+      ? Number(aggregates._avg.subtotal)
+      : 0;
+    const avgTax = aggregates._avg.tax_amount
+      ? Number(aggregates._avg.tax_amount)
+      : 0;
+    const avgTaxRate = avgSubtotal > 0 ? avgTax / avgSubtotal : 0;
+
+    return {
+      totalOrders,
+      totalTaxCollected: Number(totalTaxCollected.toFixed(2)),
+      avgTaxRate: Number(avgTaxRate.toFixed(6)),
+      lastOrderTime: lastOrder?.timestamp?.toISOString() ?? null,
+    };
+  }
+
   async importOrders(csvContent: string): Promise<ImportOrdersResult> {
     await this.ensureBootstrap();
 

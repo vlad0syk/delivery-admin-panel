@@ -1,17 +1,16 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000"
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: HeadersInit = {
-    ...(init?.headers ?? {}),
-  }
+  const headers: HeadersInit = new Headers({
+    ...(init?.headers ?? new Headers()),
+  });
 
   if (!(init?.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json"
+    headers.set("Content-Type", "application/json")
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`/api${path}`, {
     ...init,
     headers,
+    credentials: "include",
   })
 
   if (!response.ok) {
@@ -22,7 +21,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         message = data.message
       }
     } catch {
-      // ignore parse errors
     }
     throw new Error(message)
   }
@@ -113,16 +111,15 @@ export async function importOrders(file: File) {
   })
 }
 
-export interface LoginResponse {
-  id: string
-  email: string
+export interface OrdersStats {
+  totalOrders: number
+  totalTaxCollected: number
+  avgTaxRate: number
+  lastOrderTime: string | null
 }
 
-export async function login(payload: { email: string; password: string }) {
-  return request<LoginResponse>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  })
+export async function fetchStats() {
+  return request<OrdersStats>("/orders/stats")
 }
 
 export const ORDERS_UPDATED_EVENT = "orders:updated"

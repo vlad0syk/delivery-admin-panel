@@ -1,8 +1,8 @@
-"use client"
-
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import { ClipboardList, DollarSign, TrendingUp, Clock } from "lucide-react"
+import { fetchStats, ORDERS_UPDATED_EVENT } from "@/api"
+import type { OrdersStats } from "@/api"
 
 type StatItem = {
   label: string
@@ -24,16 +24,47 @@ function StatCard({ label, value, Icon }: StatItem) {
   )
 }
 
+function formatTimeSince(iso: string | null): string {
+  if (!iso) return "No orders"
+  const diff = Date.now() - new Date(iso).getTime()
+  if (diff < 0) return "Just now"
+  const totalMinutes = Math.floor(diff / 60_000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours > 0) return `${hours}h ${minutes}m ago`
+  return `${minutes}m ago`
+}
+
+function buildStatItems(stats: OrdersStats | null): StatItem[] {
+  if (!stats) {
+    return [
+      { label: "Total Orders", value: "—", Icon: ClipboardList },
+      { label: "Total Tax Collected", value: "—", Icon: DollarSign },
+      { label: "Avg Tax Rate", value: "—", Icon: TrendingUp },
+      { label: "Time Remaining", value: "—", Icon: Clock },
+    ]
+  }
+
+  return [
+    { label: "Total Orders", value: stats.totalOrders.toLocaleString(), Icon: ClipboardList },
+    { label: "Total Tax Collected", value: `$${stats.totalTaxCollected.toFixed(2)}`, Icon: DollarSign },
+    { label: "Avg Tax Rate", value: `${(stats.avgTaxRate * 100).toFixed(3)}%`, Icon: TrendingUp },
+    { label: "Time Remaining", value: formatTimeSince(stats.lastOrderTime), Icon: Clock },
+  ]
+}
+
 export default function StatsSection() {
-  const items = useMemo<StatItem[]>(
-    () => [
-      { label: "Total Orders", value: "XXXX", Icon: ClipboardList },
-      { label: "Total Tax Collected", value: "$XXXX.XX", Icon: DollarSign },
-      { label: "Avg Tax Rate", value: "X.XXX%", Icon: TrendingUp },
-      { label: "Time Remaining", value: "XXh XXm", Icon: Clock },
-    ],
-    []
-  )
+  const [stats, setStats] = useState<OrdersStats | null>(null)
+
+  useEffect(() => {
+    const load = () => { fetchStats().then(setStats).catch(() => {}) }
+    load()
+
+    window.addEventListener(ORDERS_UPDATED_EVENT, load)
+    return () => window.removeEventListener(ORDERS_UPDATED_EVENT, load)
+  }, [])
+
+  const items = buildStatItems(stats)
 
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const [active, setActive] = useState(0)
