@@ -2,24 +2,51 @@
 
 import { useRef, useState } from "react"
 import { ImagePlus } from "lucide-react"
+import { importOrders, notifyOrdersUpdated } from "@/api"
 
 export default function ImportSection() {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const openFileDialog = () => {
     inputRef.current?.click()
   }
 
-  const isCsvFile = (file: File) =>
-    file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv")
+  const isCsvFile = (fileToCheck: File) =>
+    fileToCheck.type === "text/csv" || fileToCheck.name.toLowerCase().endsWith(".csv")
+
+  const importFile = async (file: File) => {
+    setIsUploading(true)
+    setError(null)
+    setStatus(null)
+
+    try {
+      const result = await importOrders(file)
+      setStatus(
+        `Imported ${result.imported} of ${result.processed} rows (${result.failed} failed)`,
+      )
+      notifyOrdersUpdated()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to import orders")
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
     const first = files[0]
-    if (!isCsvFile(first)) return
+    if (!isCsvFile(first)) {
+      setError("Please select a CSV file")
+      setStatus(null)
+      return
+    }
     setFileName(first.name)
+    void importFile(first)
   }
 
   return (
@@ -37,9 +64,7 @@ export default function ImportSection() {
         handleFiles(event.dataTransfer.files)
       }}
       className={`min-h-52.5 w-full rounded-xl border border-dashed px-4 py-5 text-left transition ${
-        isDragging
-          ? "border-blue-400 bg-blue-50"
-          : "border-gray-300 bg-white"
+        isDragging ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-white"
       }`}
       aria-label="Upload CSV file"
     >
@@ -56,7 +81,7 @@ export default function ImportSection() {
           Upload CSV file
         </span>
         <p className="mt-1 text-[11px] font-semibold text-gray-400">
-          or drag and drop
+          {isUploading ? "Importing..." : "or drag and drop"}
         </p>
         <p className="mt-1.5 text-[11px] font-semibold text-gray-500">
           CSV with latitude, longitude, subtotal
@@ -65,6 +90,10 @@ export default function ImportSection() {
           <p className="mt-2 text-xs font-semibold text-gray-600">
             Selected: {fileName}
           </p>
+        ) : null}
+        {error ? <p className="mt-2 text-xs font-semibold text-red-600">{error}</p> : null}
+        {status ? (
+          <p className="mt-1 text-xs font-semibold text-gray-700">{status}</p>
         ) : null}
       </div>
     </button>
