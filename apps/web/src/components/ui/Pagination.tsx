@@ -85,7 +85,7 @@ export default function Pagination({
           <button
             key={number}
             className={`${baseBtn} ${
-              isActive ? "border-blue-500 bg-blue-500 text-white" : ""
+              isActive ? "!border-blue-600 bg-blue-50 text-gray-700 ring-1 ring-blue-600" : ""
             }`}
             type="button"
             aria-current={isActive ? "page" : undefined}

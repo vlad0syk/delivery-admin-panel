@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import OrderRow from "./OrderRow"
 import Pagination from "../ui/Pagination"
 import MobileOrderCard from "./MobileOrderCard"
@@ -66,6 +66,7 @@ const baseOrders: OrderData[] = [
 const TOTAL_RESULTS = 1247
 const PER_PAGE = 10
 const TOTAL_PAGES = Math.ceil(TOTAL_RESULTS / PER_PAGE)
+const HIGHEST_ORDER_ID = 1247
 
 function useOrdersPagination(page: number) {
   const paginatedOrders = useMemo(() => {
@@ -84,18 +85,50 @@ function useOrdersPagination(page: number) {
     return rows
   }, [page])
 
-  const rangeText = useMemo(() => {
-    const start = (page - 1) * PER_PAGE + 1
-    const end = Math.min(page * PER_PAGE, TOTAL_RESULTS)
-    return { start, end }
-  }, [page])
-
-  return { paginatedOrders, rangeText }
+  return { paginatedOrders }
 }
 
 export default function OrdersTable() {
   const [page, setPage] = useState(1)
-  const { paginatedOrders, rangeText } = useOrdersPagination(page)
+  const [searchValue, setSearchValue] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const { paginatedOrders } = useOrdersPagination(page)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchValue)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [searchValue])
+
+  const normalizedSearch = debouncedSearch.trim().replace("#", "")
+  const isSearching = normalizedSearch.length > 0
+  const searchId = /^\d+$/.test(normalizedSearch)
+    ? Number(normalizedSearch)
+    : null
+
+  const searchMatch = useMemo(() => {
+    if (!isSearching || searchId === null) return null
+    const index = HIGHEST_ORDER_ID - searchId
+    if (index < 0 || index >= TOTAL_RESULTS) return null
+    const template = baseOrders[index % baseOrders.length]
+    return {
+      ...template,
+      orderId: `#${searchId}`,
+    }
+  }, [isSearching, searchId])
+
+  const visibleOrders = isSearching ? (searchMatch ? [searchMatch] : []) : paginatedOrders
+  const showPagination = !isSearching || !searchMatch
+
+  const rangeText = useMemo(() => {
+    if (!visibleOrders.length) return { topId: 0, bottomId: 0 }
+    const topId = Number(visibleOrders[0].orderId.replace("#", ""))
+    const bottomId = Number(
+      visibleOrders[visibleOrders.length - 1].orderId.replace("#", "")
+    )
+    return { topId, bottomId }
+  }, [visibleOrders])
 
   return (
     <section className="mx-auto mb-5 mt-6 w-full max-w-300 px-6">
@@ -108,6 +141,11 @@ export default function OrdersTable() {
               type="text"
               placeholder="Search orders..."
               aria-label="Search orders"
+              value={searchValue}
+              onChange={(event) => {
+                setSearchValue(event.target.value)
+                if (page !== 1) setPage(1)
+              }}
               className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none sm:w-64"
             />
             <select
@@ -138,20 +176,22 @@ export default function OrdersTable() {
         
 
         <div>
-          {paginatedOrders.map((order) => (
+          {visibleOrders.map((order) => (
             <OrderRow key={order.orderId} {...order} />
           ))}
         </div>
       </div>
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <p className="text-sm text-gray-600">
-            Showing {rangeText.start} to {rangeText.end} of {TOTAL_RESULTS} results
+          <p className="whitespace-nowrap text-sm text-gray-600">
+            Showing {rangeText.bottomId} to {rangeText.topId} of {TOTAL_RESULTS} results
           </p>
-          <Pagination
-            currentPage={page}
-            totalPages={TOTAL_PAGES}
-            onPageChange={setPage}
-          />
+          {showPagination ? (
+            <Pagination
+              currentPage={page}
+              totalPages={TOTAL_PAGES}
+              onPageChange={setPage}
+            />
+          ) : null}
         </div>
       </div>
 
