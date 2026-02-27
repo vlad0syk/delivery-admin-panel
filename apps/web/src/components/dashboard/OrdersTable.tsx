@@ -40,6 +40,7 @@ export default function OrdersTable() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -147,7 +148,7 @@ export default function OrdersTable() {
 
         <div className="space-y-3 p-4 md:hidden">
           {orders.map((order) => (
-            <MobileOrderCard key={order.orderId} {...order} />
+            <MobileOrderCard key={order.orderId} {...order} onViewDetails={() => setSelectedOrder(order)} />
           ))}
         </div>
 
@@ -164,7 +165,7 @@ export default function OrdersTable() {
 
           <div>
             {orders.map((order) => (
-              <OrderRow key={order.orderId} {...order} />
+              <OrderRow key={order.orderId} {...order} onViewDetails={() => setSelectedOrder(order)} />
             ))}
           </div>
         </div>
