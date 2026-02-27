@@ -8,6 +8,7 @@ type OrderRowProps = {
   taxRate: string
   taxAmount: string
   total: string
+  onViewDetails: () => void
 }
 
 export default function OrderRow({
@@ -18,6 +19,7 @@ export default function OrderRow({
   taxRate,
   taxAmount,
   total,
+  onViewDetails,
 }: OrderRowProps) {
   return (
     <div className="grid grid-cols-[1.1fr_2fr_repeat(4,minmax(0,1fr))_1.4fr] items-center border-b border-gray-200 px-4 py-3 text-sm last:border-b-0 md:px-5">
@@ -33,7 +35,11 @@ export default function OrderRow({
       <div className="font-semibold text-gray-800">{taxAmount}</div>
       <div className="font-semibold text-gray-900">{total}</div>
 
-      <button className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+      <button
+        type="button"
+        onClick={onViewDetails}
+        className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+      >
         View Details
       </button>
     </div>

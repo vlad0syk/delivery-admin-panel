@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import OrderRow from "./OrderRow"
 import Pagination from "../ui/Pagination"
 import MobileOrderCard from "./MobileOrderCard"
+import Modal from "../ui/Modal"
 import { fetchOrders, ORDERS_UPDATED_EVENT } from "@/api"
 
 type OrderData = {
@@ -188,6 +189,79 @@ export default function OrdersTable() {
       </div>
 
       <div className="h-4 w-full bg-gray-100" />
+
+      <Modal
+        isOpen={selectedOrder !== null}
+        onClose={() => setSelectedOrder(null)}
+        title="Order Details"
+      >
+        {selectedOrder ? (
+          <div className="space-y-4 text-gray-900 sm:space-y-4">
+            <div className="border-b border-gray-200 pb-4">
+              <p className="text-sm font-medium text-gray-500">Order ID</p>
+              <p className="mt-1.5 text-lg font-semibold tracking-tight text-gray-950 sm:text-xl">
+                {selectedOrder.orderId}
+              </p>
+            </div>
+
+            <div className="border-b border-gray-200 pb-4">
+              <p className="text-sm font-medium text-gray-500">Location</p>
+              <p className="mt-1.5 text-base font-medium tracking-tight text-gray-950 sm:text-lg">
+                {selectedOrder.locationLine1}
+              </p>
+              <p className="mt-1 text-sm text-gray-500 sm:text-base">{selectedOrder.locationLine2}</p>
+            </div>
+
+            <div className="grid gap-3 border-b border-gray-200 pb-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Jurisdiction</p>
+                <p className="mt-1.5 text-base font-medium tracking-tight text-gray-950 sm:text-lg">
+                  New York County
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Date</p>
+                <p className="mt-1.5 text-base font-medium tracking-tight text-gray-950 sm:text-lg">
+                  February 27, 2026
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-medium tracking-tight text-gray-950">
+                Financial Summary
+              </h3>
+
+              <div className="mt-3 grid gap-x-5 gap-y-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Subtotal</p>
+                  <p className="mt-1.5 text-lg font-medium tracking-tight text-gray-950 sm:text-xl">
+                    {selectedOrder.subtotal}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Tax Rate</p>
+                  <p className="mt-1.5 text-lg font-medium tracking-tight text-gray-950 sm:text-xl">
+                    {selectedOrder.taxRate}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Tax Amount</p>
+                  <p className="mt-1.5 text-lg font-medium tracking-tight text-gray-950 sm:text-xl">
+                    {selectedOrder.taxAmount}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total</p>
+                  <p className="mt-1.5 text-lg font-medium tracking-tight text-gray-950 sm:text-xl">
+                    {selectedOrder.total}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </section>
   )
 }
