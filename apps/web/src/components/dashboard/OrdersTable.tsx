@@ -16,7 +16,75 @@ type OrderData = {
   total: string
 }
 
-const PER_PAGE = 10
+const baseOrders: OrderData[] = [
+  {
+    orderId: "#1247",
+    locationLine1: "40.7580, -73.9855",
+    locationLine2: "Manhattan, NY",
+    subtotal: "$100.00",
+    taxRate: "8.875%",
+    taxAmount: "$8.88",
+    total: "$108.88",
+  },
+  {
+    orderId: "#1246",
+    locationLine1: "40.6782, -73.9442",
+    locationLine2: "Brooklyn, NY",
+    subtotal: "$125.50",
+    taxRate: "8.875%",
+    taxAmount: "$11.14",
+    total: "$136.64",
+  },
+  {
+    orderId: "#1245",
+    locationLine1: "40.7489, -73.9680",
+    locationLine2: "Queens, NY",
+    subtotal: "$89.99",
+    taxRate: "8.875%",
+    taxAmount: "$7.99",
+    total: "$97.98",
+  },
+  {
+    orderId: "#1244",
+    locationLine1: "40.8448, -73.8648",
+    locationLine2: "Bronx, NY",
+    subtotal: "$150.00",
+    taxRate: "8.875%",
+    taxAmount: "$13.31",
+    total: "$163.31",
+  },
+  {
+    orderId: "#1243",
+    locationLine1: "40.5795, -74.1502",
+    locationLine2: "Staten Island, NY",
+    subtotal: "$75.25",
+    taxRate: "8.875%",
+    taxAmount: "$6.68",
+    total: "$81.93",
+  },
+]
+
+const TOTAL_RESULTS = 1247
+const PER_PAGE = 5
+const TOTAL_PAGES = Math.ceil(TOTAL_RESULTS / PER_PAGE)
+const HIGHEST_ORDER_ID = 1247
+
+function useOrdersPagination(page: number) {
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (page - 1) * PER_PAGE //0
+    const endIndex = Math.min(startIndex + PER_PAGE, TOTAL_RESULTS) //
+    const rows: OrderData[] = []
+
+    for (let i = endIndex; i > startIndex; i--) {
+      const template = baseOrders[i % baseOrders.length] 
+      const orderNumber = i
+      rows.push({
+        ...template,
+        orderId: `#${orderNumber}`,
+      })
+    }
+    return rows
+  }, [page])
 
 function formatMoney(value: string | number) {
   const num = typeof value === "string" ? Number(value) : value
@@ -144,9 +212,9 @@ export default function OrdersTable() {
         </div>
 
         <div className="md:hidden space-y-3 p-4">
-          {orders.map((order) => (
-            <MobileOrderCard key={order.orderId} {...order} />
-          ))}
+             {visibleOrders.map((order) => (
+                <MobileOrderCard key={order.orderId} {...order} />
+             ))}
         </div>
 
         <div className="hidden md:block">

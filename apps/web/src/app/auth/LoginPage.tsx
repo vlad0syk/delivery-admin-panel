@@ -1,37 +1,37 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, type FormEvent } from "react"
+import { Navigate } from "react-router-dom"
+import axios from "axios"
 import AuthLayout from "./AuthLayout"
 import AuthCard from "../../components/auth/AuthCard"
 import LoginForm from "../../components/auth/LoginForm"
 import AuthHeader from "../../components/auth/AuthHeader"
-import { login } from "@/api"
+import { useAuth } from "../../provider/authProvider"
 
 export default function LoginPage() {
-  const navigate = useNavigate()
+  const { login, isAuthenticated } = useAuth()
   const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (event) => {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const email = String(formData.get("email") ?? "").trim()
-    const password = String(formData.get("password") ?? "")
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
 
-    if (!email || !password) {
-      setError("Please enter email and password")
-      return
-    }
+  const handleLogin = async (e: FormEvent) => {
+    const form = e.target as HTMLFormElement
+    const formData = new FormData(form)
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
 
-    setIsSubmitting(true)
     setError(null)
+    setLoading(true)
 
     try {
-      await login({ email, password })
-      navigate("/dashboard")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+      await axios.post("/api/auth/login", { email, password })
+      login()
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? "Login failed. Please try again.")
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
@@ -40,17 +40,12 @@ export default function LoginPage() {
       <AuthLayout>
         <AuthHeader />
         <AuthCard>
-          <div className="space-y-3">
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
-            <LoginForm
-              onSubmit={(event) => {
-                void handleSubmit(event as React.FormEvent<HTMLFormElement>)
-              }}
-            />
-            {isSubmitting ? (
-              <p className="text-xs text-gray-500">Signing in...</p>
-            ) : null}
-          </div>
+          {error && (
+            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          <LoginForm onSubmit={handleLogin} loading={loading} />
         </AuthCard>
       </AuthLayout>
     </div>
