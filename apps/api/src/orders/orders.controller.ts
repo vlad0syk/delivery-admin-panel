@@ -6,13 +6,16 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
@@ -31,6 +34,11 @@ export class OrdersController {
   @Get()
   async getOrders(@Query() query: GetOrdersQueryDto) {
     return this.ordersService.getOrders(query);
+  }
+
+  @Get('stats')
+  async getStats() {
+    return this.ordersService.getStats();
   }
 
   @Post('import')
