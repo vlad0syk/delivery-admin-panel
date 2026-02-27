@@ -1,7 +1,15 @@
-'use client'
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../../provider/authProvider"
 
-export default function Header()
-{
+export default function Header() {
+  const { setToken } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    setToken(null)
+    navigate("/login", { replace: true })
+  }
+
   return (
   <header className="w-full bg-white border-b border-gray-200">
     <div className="max-w-300 mx-auto px-6 py-3 sm:py-0 sm:h-16 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -18,6 +26,7 @@ export default function Header()
         </span>
         <button
           type="button"
+          onClick={handleLogout}
           className="font-medium text-gray-400 hover:text-gray-700 transition-colors whitespace-nowrap"
         >
           Logout

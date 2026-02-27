@@ -1,4 +1,4 @@
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
 import { useAuth } from "@/provider/authProvider";
 import { ProtectedRoute } from "./ProtectedRoute";
 import AdminPage from "@/app/admin/AdminPage";
@@ -13,7 +13,11 @@ const Routes = () => {
           element: <ProtectedRoute />,
           children: [
             {
-              path: "/dashboard",
+              index: true,
+              element: <Navigate to="/dashboard" replace />,
+            },
+            {
+              path: "dashboard",
               element: <AdminPage />,
             },
           ],

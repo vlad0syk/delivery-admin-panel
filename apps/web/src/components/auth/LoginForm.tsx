@@ -2,7 +2,12 @@ import { type FormEvent } from "react"
 import FormInput from "./FormInput"
 import Button from "./Button"
 
-export default function LoginForm({ onSubmit }: { onSubmit?: (e: FormEvent) => void }) {
+interface LoginFormProps {
+  onSubmit?: (e: FormEvent) => void
+  loading?: boolean
+}
+
+export default function LoginForm({ onSubmit, loading }: LoginFormProps) {
   return (
     <form className="space-y-5" onSubmit={e => { e.preventDefault(); onSubmit?.(e) }}>
       <FormInput
@@ -48,7 +53,9 @@ export default function LoginForm({ onSubmit }: { onSubmit?: (e: FormEvent) => v
           </svg>
         }
       />
-       <Button type="submit">Log In</Button>
+       <Button type="submit" disabled={loading}>
+        {loading ? "Logging in..." : "Log In"}
+       </Button>
     </form>
   )
 }
