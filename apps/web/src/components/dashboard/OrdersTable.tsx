@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import OrderRow from "./OrderRow"
 import Pagination from "../ui/Pagination"
 import MobileOrderCard from "./MobileOrderCard"
-import { fetchOrders, ORDERS_UPDATED_EVENT } from "@/api"
 
 type OrderData = {
   orderId: string
@@ -86,104 +85,50 @@ function useOrdersPagination(page: number) {
     return rows
   }, [page])
 
-function formatMoney(value: string | number) {
-  const num = typeof value === "string" ? Number(value) : value
-  if (!Number.isFinite(num)) return "$0.00"
-  return `$${num.toFixed(2)}`
-}
-
-function formatTaxRate(rate: number) {
-  const percent = rate * 100
-  return `${percent.toFixed(3)}%`
+  return { paginatedOrders }
 }
 
 export default function OrdersTable() {
   const [page, setPage] = useState(1)
   const [searchValue, setSearchValue] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [orders, setOrders] = useState<OrderData[]>([])
-  const [totalResults, setTotalResults] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [pageSize, setPageSize] = useState(PER_PAGE)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshToken, setRefreshToken] = useState(0)
+  const { paginatedOrders } = useOrdersPagination(page)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(searchValue)
-      setPage(1)
     }, 300)
     return () => window.clearTimeout(timer)
   }, [searchValue])
 
-  useEffect(() => {
-    const handleUpdated = () => {
-      setRefreshToken((value) => value + 1)
+  const normalizedSearch = debouncedSearch.trim().replace("#", "")
+  const isSearching = normalizedSearch.length > 0
+  const searchId = /^\d+$/.test(normalizedSearch)
+    ? Number(normalizedSearch)
+    : null
+
+  const searchMatch = useMemo(() => {
+    if (!isSearching || searchId === null) return null
+    const index = HIGHEST_ORDER_ID - searchId
+    if (index < 0 || index >= TOTAL_RESULTS) return null
+    const template = baseOrders[index % baseOrders.length]
+    return {
+      ...template,
+      orderId: `#${searchId}`,
     }
+  }, [isSearching, searchId])
 
-    window.addEventListener(ORDERS_UPDATED_EVENT, handleUpdated)
-    return () => window.removeEventListener(ORDERS_UPDATED_EVENT, handleUpdated)
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    const load = async () => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetchOrders({
-          page,
-          limit: PER_PAGE,
-          id: debouncedSearch.trim() || undefined,
-        })
-
-        setTotalResults(response.pagination.total)
-        setTotalPages(response.pagination.totalPages)
-        setPageSize(response.pagination.limit)
-
-        const mapped: OrderData[] = response.data.map((order) => {
-          const coords = `${order.location.latitude.toFixed(4)}, ${order.location.longitude.toFixed(4)}`
-          return {
-            orderId: order.id,
-            locationLine1: coords,
-            locationLine2: order.location.taxRateRegion.name,
-            subtotal: formatMoney(order.subtotal),
-            taxRate: formatTaxRate(order.location.taxRateRegion.composite_rate),
-            taxAmount: formatMoney(order.tax_amount),
-            total: formatMoney(order.total_amount),
-          }
-        })
-
-        setOrders(mapped)
-      } catch (err) {
-        if (controller.signal.aborted) return
-        setError(err instanceof Error ? err.message : "Failed to load orders")
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    load()
-
-    return () => {
-      controller.abort()
-    }
-  }, [page, debouncedSearch, refreshToken])
+  const visibleOrders = isSearching ? (searchMatch ? [searchMatch] : []) : paginatedOrders
+  const showPagination = !isSearching || !searchMatch
 
   const rangeText = useMemo(() => {
-    if (!orders.length) {
-      return { topIndex: 0, bottomIndex: 0 }
-    }
-
-    const start = (page - 1) * pageSize + 1
-    const end = start + orders.length - 1
-    return { topIndex: end, bottomIndex: start }
-  }, [orders.length, page, pageSize])
+    if (!visibleOrders.length) return { topId: 0, bottomId: 0 }
+    const topId = Number(visibleOrders[0].orderId.replace("#", ""))
+    const bottomId = Number(
+      visibleOrders[visibleOrders.length - 1].orderId.replace("#", "")
+    )
+    return { topId, bottomId }
+  }, [visibleOrders])
 
   return (
     <section className="mx-auto mb-5 mt-6 w-full max-w-300 px-6">
@@ -199,6 +144,7 @@ export default function OrdersTable() {
               value={searchValue}
               onChange={(event) => {
                 setSearchValue(event.target.value)
+                if (page !== 1) setPage(1)
               }}
               className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none sm:w-64"
             />
@@ -230,24 +176,19 @@ export default function OrdersTable() {
         
 
         <div>
-          {orders.map((order) => (
+          {visibleOrders.map((order) => (
             <OrderRow key={order.orderId} {...order} />
           ))}
         </div>
       </div>
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="whitespace-nowrap text-sm text-gray-600">
-            {isLoading
-              ? "Loading orders..."
-              : `Showing ${rangeText.bottomIndex} to ${rangeText.topIndex} of ${totalResults} results`}
+            Showing {rangeText.bottomId} to {rangeText.topId} of {TOTAL_RESULTS} results
           </p>
-          {error ? (
-            <p className="text-sm text-red-600">{error}</p>
-          ) : null}
-          {totalPages > 1 ? (
+          {showPagination ? (
             <Pagination
               currentPage={page}
-              totalPages={totalPages}
+              totalPages={TOTAL_PAGES}
               onPageChange={setPage}
             />
           ) : null}

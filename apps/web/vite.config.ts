@@ -10,7 +10,6 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-<<<<<<< feat/jwt-auth
   server: {
     proxy: {
       '/api': {
@@ -20,7 +19,4 @@ export default defineConfig({
       },
     },
   },
-=======
-  server: {},
->>>>>>> main
 })
