@@ -135,9 +135,6 @@ export default function OrdersTable() {
         </div>
 
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <p className="text-sm text-gray-600">
-            Showing {rangeText.start} to {rangeText.end} of {TOTAL_RESULTS} results
-          </p>
           <Pagination
             currentPage={page}
             totalPages={TOTAL_PAGES}
