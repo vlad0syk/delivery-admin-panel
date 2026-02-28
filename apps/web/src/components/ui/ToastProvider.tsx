@@ -63,13 +63,6 @@ function ToastItem({
     }, TOAST_EXIT_MS)
   }
 
-  const Icon =
-    toast.variant === "import"
-      ? FileText
-      : toast.variant === "delete" || toast.variant === "delete-all"
-        ? Trash2
-        : CheckCircle2
-
   const Icon = toast.variant === "import" ? FileText : toast.variant === "error" ? AlertCircle : CheckCircle2
   const iconClasses =
     toast.variant === "import"
@@ -120,25 +113,6 @@ function ToastItem({
             }}
           />
         </div>
-
-        <button
-          type="button"
-          onClick={dismissToast}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-500"
-          aria-label="Dismiss notification"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </div>
-
-      <div className="h-1 w-full bg-slate-100">
-        <div
-          className={`h-full ${barClasses}`}
-          style={{
-            width: `${progress}%`,
-            transition: `width ${TOAST_DURATION_MS}ms linear`,
-          }}
-        />
       </div>
     </div>
   )

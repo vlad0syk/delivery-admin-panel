@@ -4,14 +4,6 @@ import { useRef, useState } from "react"
 import { ImagePlus, Loader2 } from "lucide-react"
 import { importOrders, notifyOrdersUpdated } from "@/api"
 import { showToast } from "@/toast"
-import CsvImportProgressModal from "./CsvImportProgressModal"
-
-type ImportModalState = {
-  fileName: string
-  progress: number
-  activeStep: number
-  isComplete: boolean
-}
 
 export default function ImportSection() {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -20,43 +12,6 @@ export default function ImportSection() {
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [modalState, setModalState] = useState<ImportModalState | null>(null)
-  const [pendingResult, setPendingResult] = useState<ImportOrdersResult | null>(null)
-
-  useEffect(() => {
-    if (!modalState || modalState.isComplete) {
-      return
-    }
-
-    const timer = window.setInterval(() => {
-      setModalState((current) => {
-        if (!current || current.isComplete) {
-          return current
-        }
-
-        const nextProgress = Math.min(
-          current.progress + (current.progress < 36 ? 7 : current.progress < 68 ? 4 : 2),
-          92,
-        )
-
-        let nextStep = current.activeStep
-        if (nextProgress >= 28) nextStep = 1
-        if (nextProgress >= 56) nextStep = 2
-        if (nextProgress >= 82) nextStep = 3
-
-        return {
-          ...current,
-          progress: nextProgress,
-          activeStep: nextStep,
-        }
-      })
-    }, 180)
-
-    return () => {
-      window.clearInterval(timer)
-    }
-  }, [modalState?.isComplete])
-
   const openFileDialog = () => {
     if (isUploading) return
     inputRef.current?.click()
@@ -69,15 +24,7 @@ export default function ImportSection() {
     setIsUploading(true)
     setProgress(0)
     setError(null)
-    setPendingResult(null)
-    setModalState({
-      fileName: file.name,
-      progress: 12,
-      activeStep: 0,
-      isComplete: false,
-    })
 
-    // Simulate progress while uploading (actual upload is a single POST)
     const interval = window.setInterval(() => {
       setProgress((prev) => {
         if (prev >= 90) return prev
@@ -86,6 +33,7 @@ export default function ImportSection() {
     }, 300)
 
     try {
+
       const result = await importOrders(file)
       setProgress(100)
       showToast({
@@ -95,12 +43,10 @@ export default function ImportSection() {
       })
       notifyOrdersUpdated()
     } catch (err) {
-      setModalState(null)
       setError(err instanceof Error ? err.message : "Failed to import orders")
     } finally {
       window.clearInterval(interval)
       setIsUploading(false)
-      // Reset progress after a brief delay so user sees 100%
       window.setTimeout(() => setProgress(0), 1200)
     }
   }
@@ -138,8 +84,8 @@ export default function ImportSection() {
         if (!isUploading) handleFiles(event.dataTransfer.files)
       }}
       className={`min-h-52.5 w-full rounded-xl border border-dashed px-4 py-5 text-left transition ${isUploading
-          ? "cursor-not-allowed border-gray-200 bg-gray-50 opacity-80"
-          : isDragging ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-white"
+        ? "cursor-not-allowed border-gray-200 bg-gray-50 opacity-80"
+        : isDragging ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-white"
         }`}
       aria-label="Upload CSV file"
     >
@@ -188,23 +134,9 @@ export default function ImportSection() {
           <p className="mt-2 text-xs font-semibold text-gray-600">
             Selected: {fileName}
           </p>
-          {fileName ? (
-            <p className="mt-2 text-xs font-semibold text-gray-600">
-              Selected: {fileName}
-            </p>
-          ) : null}
-          {error ? <p className="mt-2 text-xs font-semibold text-red-600">{error}</p> : null}
-        </div>
-      </button>
-
-      <CsvImportProgressModal
-        isOpen={modalState !== null}
-        fileName={modalState?.fileName ?? ""}
-        progress={modalState?.progress ?? 0}
-        activeStep={modalState?.activeStep ?? 0}
-        isComplete={modalState?.isComplete ?? false}
-        onClose={handleCloseModal}
-      />
-    </>
+        ) : null}
+        {error ? <p className="mt-2 text-xs font-semibold text-red-600">{error}</p> : null}
+      </div>
+    </button>
   )
 }
