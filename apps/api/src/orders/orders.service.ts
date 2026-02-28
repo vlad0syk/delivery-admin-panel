@@ -99,21 +99,62 @@ export class OrdersService implements OnModuleInit {
   }
 
   async clearOrders() {
-    const { deletedOrders, deletedLocations } = await this.prisma.$transaction(async (tx) => {
-      const deletedOrdersResult = await tx.order.deleteMany();
-      const deletedLocationsResult = await tx.location.deleteMany({
+    let deletedOrders = 0;
+    let deletedLocations = 0;
+    const chunkSize = 1000;
+
+    // Delete orders in chunks
+    while (true) {
+      const ordersChunk = await this.prisma.order.findMany({
+        select: { id: true },
+        take: chunkSize,
+      });
+
+      if (ordersChunk.length === 0) {
+        break;
+      }
+
+      const orderIds = ordersChunk.map((o) => o.id);
+
+      const result = await this.prisma.order.deleteMany({
+        where: {
+          id: {
+            in: orderIds,
+          },
+        },
+      });
+
+      deletedOrders += result.count;
+    }
+
+    // Delete orphaned locations in chunks
+    while (true) {
+      const locationsChunk = await this.prisma.location.findMany({
         where: {
           orders: {
             none: {},
           },
         },
+        select: { id: true },
+        take: chunkSize,
       });
 
-      return {
-        deletedOrders: deletedOrdersResult.count,
-        deletedLocations: deletedLocationsResult.count,
-      };
-    });
+      if (locationsChunk.length === 0) {
+        break;
+      }
+
+      const locationIds = locationsChunk.map((l) => l.id);
+
+      const result = await this.prisma.location.deleteMany({
+        where: {
+          id: {
+            in: locationIds,
+          },
+        },
+      });
+
+      deletedLocations += result.count;
+    }
 
     return {
       deletedOrders,
@@ -551,32 +592,38 @@ export class OrdersService implements OnModuleInit {
     const errors: ImportOrderRowError[] = [];
     let imported = 0;
     let processed = 0;
+    const chunkSize = 1000;
 
-    for (let i = firstDataRowIndex; i < rows.length; i += 1) {
-      const { line, lineNumber } = rows[i];
-      processed += 1;
+    for (let i = firstDataRowIndex; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
 
-      const rowDto = this.splitCsvLine(line);
-      if (!rowDto) {
-        errors.push({
-          line: lineNumber,
-          message: 'Invalid row format. Expected 5 columns: id,longitude,latitude,timestamp,subtotal',
-        });
-        continue;
-      }
+      await Promise.all(
+        chunk.map(async ({ line, lineNumber }) => {
+          processed += 1;
 
-      const dtoWithGeneratedId = { ...rowDto, id: randomUUID() };
+          const rowDto = this.splitCsvLine(line);
+          if (!rowDto) {
+            errors.push({
+              line: lineNumber,
+              message: 'Invalid row format. Expected 5 columns: id,longitude,latitude,timestamp,subtotal',
+            });
+            return;
+          }
 
-      try {
-        await this.createOrderInternal(dtoWithGeneratedId, true);
-        imported += 1;
-      } catch (error) {
-        errors.push({
-          line: lineNumber,
-          id: dtoWithGeneratedId.id,
-          message: this.toErrorMessage(error),
-        });
-      }
+          const dtoWithGeneratedId = { ...rowDto, id: randomUUID() };
+
+          try {
+            await this.createOrderInternal(dtoWithGeneratedId, true);
+            imported += 1;
+          } catch (error) {
+            errors.push({
+              line: lineNumber,
+              id: dtoWithGeneratedId.id,
+              message: this.toErrorMessage(error),
+            });
+          }
+        }),
+      );
     }
 
     return {
