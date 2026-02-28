@@ -8,7 +8,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     email: string | null;
-    login: () => void;
+    login: (email: string) => void;
     logout: () => void;
 }
 
@@ -29,7 +29,10 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
             .finally(() => setIsLoading(false));
     }, []);
 
-    const login = useCallback(() => setIsAuthenticated(true), []);
+    const login = useCallback((userEmail: string) => {
+        setIsAuthenticated(true);
+        setEmail(userEmail);
+    }, []);
 
     const logout = useCallback(() => {
         axios.post("/api/auth/logout")

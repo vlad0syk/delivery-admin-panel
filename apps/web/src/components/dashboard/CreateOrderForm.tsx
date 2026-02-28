@@ -13,7 +13,6 @@ export default function CreateOrderForm() {
   const [longitude, setLongitude] = useState("")
   const [subtotal, setSubtotal] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const onCoordChange =
     (setter: (value: string) => void) =>
@@ -33,12 +32,11 @@ export default function CreateOrderForm() {
 
   const handleSubmit = async () => {
     if (!latitude || !longitude || !subtotal) {
-      setError("Please fill in all fields")
+      showToast({ title: "Error", message: "Please fill in all fields", variant: "error" })
       return
     }
 
     setIsSubmitting(true)
-    setError(null)
 
     try {
       const order = await createOrder({ latitude, longitude, subtotal })
@@ -53,7 +51,7 @@ export default function CreateOrderForm() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to create order"
-      setError(message)
+      showToast({ title: "Error", message, variant: "error" })
     } finally {
       setIsSubmitting(false)
     }
@@ -104,7 +102,7 @@ export default function CreateOrderForm() {
         />
       </label>
 
-      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+
 
       <button
         type="submit"

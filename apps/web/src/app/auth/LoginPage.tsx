@@ -27,7 +27,7 @@ export default function LoginPage() {
 
     try {
       await axios.post("/api/auth/login", { email, password })
-      login()
+      login(email)
     } catch (err: any) {
       setError(err.response?.data?.message ?? "Login failed. Please try again.")
     } finally {

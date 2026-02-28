@@ -28,7 +28,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 py-3 sm:items-center sm:px-4 sm:py-4">
-      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[20px] bg-[#f8f8f8] shadow-2xl sm:max-h-none sm:overflow-visible">
+      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-[20px] bg-[#f8f8f8] shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
         <div className="border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
           <h2 className="text-xl font-semibold tracking-tight text-gray-950">
             {title ?? "Details"}

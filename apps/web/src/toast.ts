@@ -1,6 +1,6 @@
 export const APP_TOAST_EVENT = "app:toast"
 
-export type AppToastVariant = "success" | "import" | "delete" | "delete-all"
+export type AppToastVariant = "success" | "import" | "error"
 
 export interface AppToastPayload {
   title: string

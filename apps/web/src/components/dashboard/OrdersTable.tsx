@@ -18,6 +18,7 @@ import {
   notifyOrdersUpdated,
   ORDERS_UPDATED_EVENT,
 } from "@/api"
+import type { Jurisdiction } from "@/api"
 import { showToast } from "@/toast"
 
 type OrderData = {
@@ -30,9 +31,10 @@ type OrderData = {
   taxAmount: string
   total: string
   timestamp: string
+  jurisdictions: Jurisdiction[]
 }
 
-const PER_PAGE = 20
+const PER_PAGE = 5
 
 const EMPTY_FILTERS: FilterValues = {
   dateFrom: "",
@@ -167,6 +169,7 @@ export default function OrdersTable() {
             taxAmount: formatMoney(order.tax_amount),
             total: formatMoney(order.total_amount),
             timestamp: formatTimestamp(order.timestamp),
+            jurisdictions: order.location.taxRateRegion.jurisdictions ?? [],
           }
         })
 
@@ -209,13 +212,8 @@ export default function OrdersTable() {
     if (!deleteTarget) return
     setIsDeleting(true)
     try {
-      const deletedOrderId = deleteTarget.orderId
       await apiDeleteOrder(deleteTarget.orderId)
-      showToast({
-        title: "Item deleted",
-        message: `Order ${deletedOrderId} has been removed`,
-        variant: "delete",
-      })
+      showToast({ title: "Order deleted", message: `Order ${deleteTarget.orderId} was deleted` })
       notifyOrdersUpdated()
       setDeleteTarget(null)
     } catch (err) {
@@ -229,13 +227,8 @@ export default function OrdersTable() {
   const handleDeleteAll = async () => {
     setIsDeletingAll(true)
     try {
-      const deletedCount = totalResults
       await apiDeleteAllOrders()
-      showToast({
-        title: "All items deleted",
-        message: `${deletedCount} orders removed | cannot be undone`,
-        variant: "delete-all",
-      })
+      showToast({ title: "All orders deleted", message: `${totalResults} orders were deleted` })
       notifyOrdersUpdated()
       setShowDeleteAll(false)
       setPage(1)
@@ -248,9 +241,11 @@ export default function OrdersTable() {
   }
 
   const handleDeleteSelected = async () => {
+    const count = selectedIds.size
     setIsDeletingSelected(true)
     try {
       await deleteOrdersBatch([...selectedIds])
+      showToast({ title: "Orders deleted", message: `${count} selected orders were deleted` })
       notifyOrdersUpdated()
       setShowDeleteSelected(false)
       setSelectedIds(new Set())
@@ -314,7 +309,6 @@ export default function OrdersTable() {
   return (
     <section className="mx-auto mb-5 mt-6 w-full max-w-300 px-6">
       <div className="rounded-xl border border-gray-200 bg-white">
-        {/* Header bar */}
         <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
@@ -370,10 +364,8 @@ export default function OrdersTable() {
           </div>
         </div>
 
-        {/* Filters panel */}
         <FiltersPanel values={filters} onChange={handleFiltersChange} />
 
-        {/* Mobile cards */}
         <div className="space-y-3 p-4 md:hidden">
           {orders.map((order) => (
             <MobileOrderCard
@@ -388,9 +380,8 @@ export default function OrdersTable() {
           ))}
         </div>
 
-        {/* Desktop table */}
         <div className="hidden md:block">
-          <div className="grid grid-cols-[auto_1.1fr_1.6fr_repeat(4,minmax(0,1fr))_0.9fr_1.2fr] items-center border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 md:px-5">
+          <div className="grid grid-cols-[auto_1.1fr_1.6fr_repeat(4,minmax(0,1fr))_0.9fr_1.2fr] items-center gap-x-4 border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 md:px-5">
             <div className="pr-3">
               <input
                 type="checkbox"
@@ -401,17 +392,17 @@ export default function OrdersTable() {
             </div>
             <div>Order ID</div>
             <div>Location</div>
-            <button type="button" onClick={() => handleSort("subtotal")} className="flex items-center gap-1 hover:text-gray-700">
+            <button type="button" onClick={() => handleSort("subtotal")} className="relative z-10 flex cursor-pointer items-center gap-1 text-left hover:text-gray-700">
               Subtotal <SortIcon field="subtotal" />
             </button>
             <div>Tax Rate</div>
-            <button type="button" onClick={() => handleSort("tax_amount")} className="flex items-center gap-1 hover:text-gray-700">
+            <button type="button" onClick={() => handleSort("tax_amount")} className="relative z-10 flex cursor-pointer items-center gap-1 text-left hover:text-gray-700">
               Tax Amount <SortIcon field="tax_amount" />
             </button>
-            <button type="button" onClick={() => handleSort("total_amount")} className="flex items-center gap-1 hover:text-gray-700">
+            <button type="button" onClick={() => handleSort("total_amount")} className="relative z-10 flex cursor-pointer items-center gap-1 text-left hover:text-gray-700">
               Total <SortIcon field="total_amount" />
             </button>
-            <button type="button" onClick={() => handleSort("timestamp")} className="flex items-center gap-1 hover:text-gray-700">
+            <button type="button" onClick={() => handleSort("timestamp")} className="relative z-10 flex cursor-pointer items-center gap-1 text-left hover:text-gray-700">
               Date <SortIcon field="timestamp" />
             </button>
             <div className="text-right">Actions</div>
@@ -432,7 +423,6 @@ export default function OrdersTable() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="whitespace-nowrap text-sm text-gray-600">
             {isLoading
@@ -454,7 +444,6 @@ export default function OrdersTable() {
 
       <div className="h-4 w-full bg-gray-100" />
 
-      {/* View Details Modal */}
       <Modal
         isOpen={selectedOrder !== null}
         onClose={() => setSelectedOrder(null)}
@@ -516,11 +505,45 @@ export default function OrdersTable() {
                 </div>
               </div>
             </div>
+
+            {selectedOrder.jurisdictions.length > 0 ? (
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-lg font-medium tracking-tight text-gray-950">
+                  Tax Breakdown
+                </h3>
+                <div className="mt-3 space-y-2">
+                  {selectedOrder.jurisdictions.map((j) => (
+                    <div
+                      key={j.id}
+                      className="flex flex-col gap-1 rounded-lg border border-gray-100 bg-gray-50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span
+                          className={`inline-flex shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${j.type === "state"
+                            ? "bg-blue-100 text-blue-700"
+                            : j.type === "county"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                            }`}
+                        >
+                          {j.type}
+                        </span>
+                        <span className="min-w-0 break-words text-sm font-medium text-gray-800">
+                          {j.name}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold text-gray-900">
+                        {(j.rate * 100).toFixed(3)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </Modal>
 
-      {/* Delete Single Order Confirm */}
       <ConfirmDialog
         isOpen={deleteTarget !== null}
         title="Delete Order"
@@ -532,7 +555,6 @@ export default function OrdersTable() {
         onCancel={() => setDeleteTarget(null)}
       />
 
-      {/* Delete All Orders Confirm */}
       <ConfirmDialog
         isOpen={showDeleteAll}
         title="Delete All Orders"
@@ -544,7 +566,6 @@ export default function OrdersTable() {
         onCancel={() => setShowDeleteAll(false)}
       />
 
-      {/* Delete Selected Orders Confirm */}
       <ConfirmDialog
         isOpen={showDeleteSelected}
         title="Delete Selected Orders"
@@ -556,7 +577,6 @@ export default function OrdersTable() {
         onCancel={() => setShowDeleteSelected(false)}
       />
 
-      {/* Edit Order Modal */}
       <EditOrderModal
         isOpen={editTarget !== null}
         orderId={editTarget?.orderId ?? ""}
