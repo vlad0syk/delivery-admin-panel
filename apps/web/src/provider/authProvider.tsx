@@ -7,6 +7,7 @@ axios.defaults.withCredentials = true;
 interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
+    email: string | null;
     login: () => void;
     logout: () => void;
 }
@@ -16,10 +17,14 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [email, setEmail] = useState<string | null>(null);
 
     useEffect(() => {
         axios.get("/api/auth/me")
-            .then(() => setIsAuthenticated(true))
+            .then((res) => {
+                setIsAuthenticated(true);
+                setEmail(res.data?.email ?? null);
+            })
             .catch(() => setIsAuthenticated(false))
             .finally(() => setIsLoading(false));
     }, []);
@@ -28,13 +33,16 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const logout = useCallback(() => {
         axios.post("/api/auth/logout")
-            .catch(() => {})
-            .finally(() => setIsAuthenticated(false));
+            .catch(() => { })
+            .finally(() => {
+                setIsAuthenticated(false);
+                setEmail(null);
+            });
     }, []);
 
     const contextValue = useMemo(
-        () => ({ isAuthenticated, isLoading, login, logout }),
-        [isAuthenticated, isLoading, login, logout],
+        () => ({ isAuthenticated, isLoading, email, login, logout }),
+        [isAuthenticated, isLoading, email, login, logout],
     );
 
     return (

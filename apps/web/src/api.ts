@@ -68,12 +68,44 @@ export interface OrdersResponse {
   pagination: OrdersPagination
 }
 
-export async function fetchOrders(params: { page?: number; limit?: number; id?: string; taxRateRegionName?: string }) {
+export interface FetchOrdersParams {
+  page?: number
+  limit?: number
+  id?: string
+  taxRateRegionName?: string
+  dateFrom?: string
+  dateTo?: string
+  minSubtotal?: string
+  maxSubtotal?: string
+  minTaxAmount?: string
+  maxTaxAmount?: string
+  specialRate?: string
+  sortBy?: string
+  sortOrder?: string
+}
+
+export async function fetchOrders(params: FetchOrdersParams) {
   const search = new URLSearchParams()
-  if (params.page != null) search.set("page", String(params.page))
-  if (params.limit != null) search.set("limit", String(params.limit))
-  if (params.id) search.set("id", params.id)
-  if (params.taxRateRegionName) search.set("taxRateRegionName", params.taxRateRegionName)
+
+  const entries: [string, string | undefined][] = [
+    ["page", params.page != null ? String(params.page) : undefined],
+    ["limit", params.limit != null ? String(params.limit) : undefined],
+    ["id", params.id || undefined],
+    ["taxRateRegionName", params.taxRateRegionName || undefined],
+    ["dateFrom", params.dateFrom || undefined],
+    ["dateTo", params.dateTo || undefined],
+    ["minSubtotal", params.minSubtotal || undefined],
+    ["maxSubtotal", params.maxSubtotal || undefined],
+    ["minTaxAmount", params.minTaxAmount || undefined],
+    ["maxTaxAmount", params.maxTaxAmount || undefined],
+    ["specialRate", params.specialRate || undefined],
+    ["sortBy", params.sortBy || undefined],
+    ["sortOrder", params.sortOrder || undefined],
+  ]
+
+  for (const [key, value] of entries) {
+    if (value) search.set(key, value)
+  }
 
   const query = search.toString()
   const path = `/orders${query ? `?${query}` : ""}`
@@ -120,6 +152,16 @@ export async function deleteOrder(id: string) {
 
 export async function deleteAllOrders() {
   return request<void>("/orders", { method: "DELETE" })
+}
+
+export async function deleteOrdersBatch(ids: string[]) {
+  const results = await Promise.allSettled(
+    ids.map((id) => deleteOrder(id))
+  )
+  const failed = results.filter((r) => r.status === "rejected").length
+  if (failed > 0) {
+    throw new Error(`Failed to delete ${failed} of ${ids.length} orders`)
+  }
 }
 
 export interface UpdateOrderPayload {

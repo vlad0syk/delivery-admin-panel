@@ -1,17 +1,20 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ChevronDown, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Trash2 } from "lucide-react"
 import OrderRow from "./OrderRow"
 import Pagination from "../ui/Pagination"
 import MobileOrderCard from "./MobileOrderCard"
 import Modal from "../ui/Modal"
 import ConfirmDialog from "../ui/ConfirmDialog"
 import EditOrderModal from "./EditOrderModal"
+import FiltersPanel from "./FiltersPanel"
+import type { FilterValues } from "./FiltersPanel"
 import {
   fetchOrders,
   deleteOrder as apiDeleteOrder,
   deleteAllOrders as apiDeleteAllOrders,
+  deleteOrdersBatch,
   notifyOrdersUpdated,
   ORDERS_UPDATED_EVENT,
 } from "@/api"
@@ -25,9 +28,20 @@ type OrderData = {
   taxRate: string
   taxAmount: string
   total: string
+  timestamp: string
 }
 
 const PER_PAGE = 20
+
+const EMPTY_FILTERS: FilterValues = {
+  dateFrom: "",
+  dateTo: "",
+  minSubtotal: "",
+  maxSubtotal: "",
+  minTaxAmount: "",
+  maxTaxAmount: "",
+  specialRate: "",
+}
 
 function formatMoney(value: string | number) {
   const num = typeof value === "string" ? Number(value) : value
@@ -40,6 +54,18 @@ function formatTaxRate(rate: number) {
   return `${percent.toFixed(3)}%`
 }
 
+function formatTimestamp(iso: string) {
+  const d = new Date(iso)
+  const dd = String(d.getDate()).padStart(2, "0")
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const yyyy = d.getFullYear()
+  const hh = String(d.getHours()).padStart(2, "0")
+  const min = String(d.getMinutes()).padStart(2, "0")
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`
+}
+
+type SortField = "subtotal" | "tax_amount" | "total_amount" | "timestamp"
+
 export default function OrdersTable() {
   const [page, setPage] = useState(1)
   const [searchValue, setSearchValue] = useState("")
@@ -51,19 +77,37 @@ export default function OrdersTable() {
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
 
+  // Jurisdiction filter
   const [selectedJurisdiction, setSelectedJurisdiction] = useState("")
   const [jurisdictions, setJurisdictions] = useState<string[]>([])
 
+  // Filters
+  const [filters, setFilters] = useState<FilterValues>(EMPTY_FILTERS)
+
+  // Sorting
+  const [sortBy, setSortBy] = useState<SortField>("timestamp")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+
+  // View details modal
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null)
 
+  // Delete single order
   const [deleteTarget, setDeleteTarget] = useState<OrderData | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Delete all orders
   const [showDeleteAll, setShowDeleteAll] = useState(false)
   const [isDeletingAll, setIsDeletingAll] = useState(false)
 
+  // Edit order
   const [editTarget, setEditTarget] = useState<OrderData | null>(null)
 
+  // Multi-select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showDeleteSelected, setShowDeleteSelected] = useState(false)
+  const [isDeletingSelected, setIsDeletingSelected] = useState(false)
+
+  // Debounced search
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(searchValue)
@@ -72,6 +116,7 @@ export default function OrdersTable() {
     return () => window.clearTimeout(timer)
   }, [searchValue])
 
+  // Listen for external updates
   useEffect(() => {
     const handleUpdated = () => {
       setRefreshToken((value) => value + 1)
@@ -81,6 +126,7 @@ export default function OrdersTable() {
     return () => window.removeEventListener(ORDERS_UPDATED_EVENT, handleUpdated)
   }, [])
 
+  // Fetch orders
   useEffect(() => {
     const controller = new AbortController()
 
@@ -94,6 +140,15 @@ export default function OrdersTable() {
           limit: PER_PAGE,
           id: debouncedSearch.trim() || undefined,
           taxRateRegionName: selectedJurisdiction || undefined,
+          dateFrom: filters.dateFrom ? new Date(filters.dateFrom).toISOString() : undefined,
+          dateTo: filters.dateTo ? new Date(filters.dateTo + "T23:59:59").toISOString() : undefined,
+          minSubtotal: filters.minSubtotal || undefined,
+          maxSubtotal: filters.maxSubtotal || undefined,
+          minTaxAmount: filters.minTaxAmount || undefined,
+          maxTaxAmount: filters.maxTaxAmount || undefined,
+          specialRate: filters.specialRate || undefined,
+          sortBy,
+          sortOrder,
         })
 
         setTotalResults(response.pagination.total)
@@ -110,11 +165,13 @@ export default function OrdersTable() {
             taxRate: formatTaxRate(order.location.taxRateRegion.composite_rate),
             taxAmount: formatMoney(order.tax_amount),
             total: formatMoney(order.total_amount),
+            timestamp: formatTimestamp(order.timestamp),
           }
         })
 
         setOrders(mapped)
 
+        // Collect unique jurisdiction names
         const names = new Set(response.data.map((o) => o.location.taxRateRegion.name))
         setJurisdictions((prev) => {
           const merged = new Set([...prev, ...names])
@@ -139,8 +196,14 @@ export default function OrdersTable() {
     return () => {
       controller.abort()
     }
-  }, [page, debouncedSearch, selectedJurisdiction, refreshToken])
+  }, [page, debouncedSearch, selectedJurisdiction, filters, sortBy, sortOrder, refreshToken])
 
+  // Clear selection when orders change
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [orders])
+
+  // Handlers
   const handleDeleteOne = async () => {
     if (!deleteTarget) return
     setIsDeleting(true)
@@ -171,6 +234,60 @@ export default function OrdersTable() {
     }
   }
 
+  const handleDeleteSelected = async () => {
+    setIsDeletingSelected(true)
+    try {
+      await deleteOrdersBatch([...selectedIds])
+      notifyOrdersUpdated()
+      setShowDeleteSelected(false)
+      setSelectedIds(new Set())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete selected orders")
+      setShowDeleteSelected(false)
+    } finally {
+      setIsDeletingSelected(false)
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === orders.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(orders.map((o) => o.orderId)))
+    }
+  }
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(field)
+      setSortOrder("desc")
+    }
+    setPage(1)
+  }
+
+  const handleFiltersChange = (next: FilterValues) => {
+    setFilters(next)
+    setPage(1)
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortBy !== field) return <ArrowUpDown size={13} className="text-gray-400" />
+    return sortOrder === "asc"
+      ? <ArrowUp size={13} className="text-blue-600" />
+      : <ArrowDown size={13} className="text-blue-600" />
+  }
+
   const rangeText = useMemo(() => {
     if (!orders.length) {
       return { topIndex: 0, bottomIndex: 0 }
@@ -184,18 +301,19 @@ export default function OrdersTable() {
   return (
     <section className="mx-auto mb-5 mt-6 w-full max-w-300 px-6">
       <div className="rounded-xl border border-gray-200 bg-white">
+        {/* Header bar */}
         <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
             <input
               type="text"
-              placeholder="Search orders..."
+              placeholder="Search by ID..."
               aria-label="Search orders"
               value={searchValue}
               onChange={(event) => {
                 setSearchValue(event.target.value)
               }}
-              className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none sm:w-64"
+              className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none sm:w-56"
             />
             <div className="relative w-full sm:w-48">
               <select
@@ -214,7 +332,18 @@ export default function OrdersTable() {
               </select>
               <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
             </div>
-            {totalResults > 0 ? (
+
+            {selectedIds.size > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowDeleteSelected(true)}
+                className="flex h-10 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 sm:w-auto"
+                title={`Delete ${selectedIds.size} selected`}
+              >
+                <Trash2 size={15} />
+                <span>Delete ({selectedIds.size})</span>
+              </button>
+            ) : totalResults > 0 ? (
               <button
                 type="button"
                 onClick={() => setShowDeleteAll(true)}
@@ -228,11 +357,17 @@ export default function OrdersTable() {
           </div>
         </div>
 
+        {/* Filters panel */}
+        <FiltersPanel values={filters} onChange={handleFiltersChange} />
+
+        {/* Mobile cards */}
         <div className="space-y-3 p-4 md:hidden">
           {orders.map((order) => (
             <MobileOrderCard
               key={order.orderId}
               {...order}
+              isSelected={selectedIds.has(order.orderId)}
+              onToggleSelect={() => toggleSelectOne(order.orderId)}
               onViewDetails={() => setSelectedOrder(order)}
               onEdit={() => setEditTarget(order)}
               onDelete={() => setDeleteTarget(order)}
@@ -240,15 +375,33 @@ export default function OrdersTable() {
           ))}
         </div>
 
+        {/* Desktop table */}
         <div className="hidden md:block">
-          <div className="grid grid-cols-[1.1fr_2fr_repeat(4,minmax(0,1fr))_1.4fr] items-center border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 md:px-5">
+          <div className="grid grid-cols-[auto_1.1fr_1.6fr_repeat(4,minmax(0,1fr))_0.9fr_1.2fr] items-center border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 md:px-5">
+            <div className="pr-3">
+              <input
+                type="checkbox"
+                checked={orders.length > 0 && selectedIds.size === orders.length}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </div>
             <div>Order ID</div>
             <div>Location</div>
-            <div>Subtotal</div>
+            <button type="button" onClick={() => handleSort("subtotal")} className="flex items-center gap-1 hover:text-gray-700">
+              Subtotal <SortIcon field="subtotal" />
+            </button>
             <div>Tax Rate</div>
-            <div>Tax Amount</div>
-            <div>Total</div>
-            <div>Actions</div>
+            <button type="button" onClick={() => handleSort("tax_amount")} className="flex items-center gap-1 hover:text-gray-700">
+              Tax Amount <SortIcon field="tax_amount" />
+            </button>
+            <button type="button" onClick={() => handleSort("total_amount")} className="flex items-center gap-1 hover:text-gray-700">
+              Total <SortIcon field="total_amount" />
+            </button>
+            <button type="button" onClick={() => handleSort("timestamp")} className="flex items-center gap-1 hover:text-gray-700">
+              Date <SortIcon field="timestamp" />
+            </button>
+            <div className="text-right">Actions</div>
           </div>
 
           <div>
@@ -256,6 +409,8 @@ export default function OrdersTable() {
               <OrderRow
                 key={order.orderId}
                 {...order}
+                isSelected={selectedIds.has(order.orderId)}
+                onToggleSelect={() => toggleSelectOne(order.orderId)}
                 onViewDetails={() => setSelectedOrder(order)}
                 onEdit={() => setEditTarget(order)}
                 onDelete={() => setDeleteTarget(order)}
@@ -264,6 +419,7 @@ export default function OrdersTable() {
           </div>
         </div>
 
+        {/* Footer */}
         <div className="flex flex-col gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="whitespace-nowrap text-sm text-gray-600">
             {isLoading
@@ -285,6 +441,7 @@ export default function OrdersTable() {
 
       <div className="h-4 w-full bg-gray-100" />
 
+      {/* View Details Modal */}
       <Modal
         isOpen={selectedOrder !== null}
         onClose={() => setSelectedOrder(null)}
@@ -305,6 +462,13 @@ export default function OrdersTable() {
                 {selectedOrder.locationLine1}
               </p>
               <p className="mt-1 text-sm text-gray-500 sm:text-base">{selectedOrder.locationLine2}</p>
+            </div>
+
+            <div className="border-b border-gray-200 pb-4">
+              <p className="text-sm font-medium text-gray-500">Date</p>
+              <p className="mt-1.5 text-base font-medium tracking-tight text-gray-950 sm:text-lg">
+                {selectedOrder.timestamp}
+              </p>
             </div>
 
             <div>
@@ -343,6 +507,7 @@ export default function OrdersTable() {
         ) : null}
       </Modal>
 
+      {/* Delete Single Order Confirm */}
       <ConfirmDialog
         isOpen={deleteTarget !== null}
         title="Delete Order"
@@ -354,6 +519,7 @@ export default function OrdersTable() {
         onCancel={() => setDeleteTarget(null)}
       />
 
+      {/* Delete All Orders Confirm */}
       <ConfirmDialog
         isOpen={showDeleteAll}
         title="Delete All Orders"
@@ -365,6 +531,19 @@ export default function OrdersTable() {
         onCancel={() => setShowDeleteAll(false)}
       />
 
+      {/* Delete Selected Orders Confirm */}
+      <ConfirmDialog
+        isOpen={showDeleteSelected}
+        title="Delete Selected Orders"
+        message={`Are you sure you want to delete ${selectedIds.size} selected orders? This action cannot be undone.`}
+        confirmLabel={`Delete ${selectedIds.size}`}
+        variant="danger"
+        isLoading={isDeletingSelected}
+        onConfirm={handleDeleteSelected}
+        onCancel={() => setShowDeleteSelected(false)}
+      />
+
+      {/* Edit Order Modal */}
       <EditOrderModal
         isOpen={editTarget !== null}
         orderId={editTarget?.orderId ?? ""}

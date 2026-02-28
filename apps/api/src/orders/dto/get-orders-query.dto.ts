@@ -36,4 +36,24 @@ export class GetOrdersQueryDto {
   @IsOptional()
   @IsString()
   maxSubtotal?: string;
+
+  @IsOptional()
+  @IsString()
+  minTaxAmount?: string;
+
+  @IsOptional()
+  @IsString()
+  maxTaxAmount?: string;
+
+  @IsOptional()
+  @IsString()
+  specialRate?: string;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @IsOptional()
+  @IsString()
+  sortOrder?: string;
 }

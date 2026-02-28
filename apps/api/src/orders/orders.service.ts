@@ -383,6 +383,38 @@ export class OrdersService implements OnModuleInit {
       where.subtotal = subtotalFilter;
     }
 
+    if (query.minTaxAmount || query.maxTaxAmount) {
+      const minTax =
+        query.minTaxAmount !== undefined
+          ? this.parseNumber(query.minTaxAmount, 'minTaxAmount')
+          : undefined;
+      const maxTax =
+        query.maxTaxAmount !== undefined
+          ? this.parseNumber(query.maxTaxAmount, 'maxTaxAmount')
+          : undefined;
+
+      if (minTax !== undefined && minTax < 0) {
+        throw new BadRequestException('minTaxAmount must be greater than or equal to 0');
+      }
+      if (maxTax !== undefined && maxTax < 0) {
+        throw new BadRequestException('maxTaxAmount must be greater than or equal to 0');
+      }
+      if (minTax !== undefined && maxTax !== undefined && minTax > maxTax) {
+        throw new BadRequestException(
+          'minTaxAmount must be less than or equal to maxTaxAmount',
+        );
+      }
+
+      const taxFilter: Prisma.DecimalFilter<'Order'> = {};
+      if (minTax !== undefined) {
+        taxFilter.gte = this.toMoneyDecimal(minTax);
+      }
+      if (maxTax !== undefined) {
+        taxFilter.lte = this.toMoneyDecimal(maxTax);
+      }
+      where.tax_amount = taxFilter;
+    }
+
     const locationFilter: Prisma.LocationWhereInput = {};
 
     if (query.taxRateRegionId?.trim()) {
@@ -398,9 +430,36 @@ export class OrdersService implements OnModuleInit {
       };
     }
 
+    if (query.specialRate?.trim()) {
+      const specialRateValue = this.parseNumber(query.specialRate, 'specialRate');
+      if (locationFilter.taxRateRegion && typeof locationFilter.taxRateRegion === 'object') {
+        (locationFilter.taxRateRegion as Prisma.TaxRateRegionWhereInput).special_rate = { equals: specialRateValue };
+      } else {
+        locationFilter.taxRateRegion = { special_rate: { equals: specialRateValue } };
+      }
+    }
+
     if (Object.keys(locationFilter).length > 0) {
       where.location = locationFilter;
     }
+
+    // Sorting
+    const ALLOWED_SORT_FIELDS = ['subtotal', 'tax_amount', 'total_amount', 'timestamp'] as const;
+    type SortField = typeof ALLOWED_SORT_FIELDS[number];
+
+    const sortField: SortField = ALLOWED_SORT_FIELDS.includes(query.sortBy as SortField)
+      ? (query.sortBy as SortField)
+      : 'timestamp';
+    const sortDirection: 'asc' | 'desc' =
+      query.sortOrder === 'asc' ? 'asc' : 'desc';
+
+    const orderBy: Prisma.OrderOrderByWithRelationInput[] = [
+      { [sortField]: sortDirection },
+    ];
+    if (sortField !== 'timestamp') {
+      orderBy.push({ timestamp: 'desc' });
+    }
+    orderBy.push({ id: 'desc' });
 
     const [total, items] = await this.prisma.$transaction([
       this.prisma.order.count({ where }),
@@ -408,7 +467,7 @@ export class OrdersService implements OnModuleInit {
         where,
         skip,
         take: limit,
-        orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+        orderBy,
         include: {
           location: {
             include: {
