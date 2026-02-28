@@ -14,6 +14,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { ImportOrdersResult, ImportOrderRowError } from './dto/import-orders.dto';
 import { JurisdictionDto } from './dto/jurisdiction.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
 import { PDFParse } from 'pdf-parse';
 
 const ORDERS_ASSETS_DIR = 'assets';
@@ -95,6 +96,229 @@ export class OrdersService implements OnModuleInit {
   async createOrder(payload: CreateOrderDto): Promise<OrderWithLocation> {
     await this.ensureBootstrap();
     return this.createOrderInternal(payload, false);
+  }
+
+  async clearOrders() {
+    const { deletedOrders, deletedLocations } = await this.prisma.$transaction(async (tx) => {
+      const deletedOrdersResult = await tx.order.deleteMany();
+      const deletedLocationsResult = await tx.location.deleteMany({
+        where: {
+          orders: {
+            none: {},
+          },
+        },
+      });
+
+      return {
+        deletedOrders: deletedOrdersResult.count,
+        deletedLocations: deletedLocationsResult.count,
+      };
+    });
+
+    return {
+      deletedOrders,
+      deletedLocations,
+    };
+  }
+
+  async deleteOrder(rawOrderId: string) {
+    const orderId = this.parseRequiredString(rawOrderId, 'id');
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const deletedOrder = await tx.order.delete({
+          where: {
+            id: orderId,
+          },
+          select: {
+            id: true,
+            locationId: true,
+          },
+        });
+
+        await tx.location.deleteMany({
+          where: {
+            id: deletedOrder.locationId,
+            orders: {
+              none: {},
+            },
+          },
+        });
+
+        return {
+          id: deletedOrder.id,
+        };
+      });
+    } catch (error) {
+      if (this.isRecordNotFoundError(error)) {
+        throw new NotFoundException(`Order with id "${orderId}" not found`);
+      }
+      throw error;
+    }
+  }
+
+  async updateOrder(rawOrderId: string, payload: UpdateOrderDto): Promise<OrderWithLocation> {
+    await this.ensureBootstrap();
+
+    const orderId = this.parseRequiredString(rawOrderId, 'id');
+    const hasAnyFieldToUpdate =
+      payload.longitude !== undefined ||
+      payload.latitude !== undefined ||
+      payload.timestamp !== undefined ||
+      payload.subtotal !== undefined;
+
+    if (!hasAnyFieldToUpdate) {
+      throw new BadRequestException(
+        'At least one of longitude, latitude, timestamp, subtotal must be provided',
+      );
+    }
+
+    const existingOrder = await this.prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: {
+        location: {
+          include: {
+            taxRateRegion: true,
+          },
+        },
+      },
+    });
+
+    if (!existingOrder) {
+      throw new NotFoundException(`Order with id "${orderId}" not found`);
+    }
+
+    const longitude =
+      payload.longitude !== undefined
+        ? this.parseCoordinate(payload.longitude, 'longitude', -180, 180)
+        : existingOrder.location.longitude;
+    const latitude =
+      payload.latitude !== undefined
+        ? this.parseCoordinate(payload.latitude, 'latitude', -90, 90)
+        : existingOrder.location.latitude;
+    const subtotalChanged = payload.subtotal !== undefined;
+    const subtotal =
+      payload.subtotal !== undefined
+        ? this.parseNumber(payload.subtotal, 'subtotal')
+        : Number(existingOrder.subtotal);
+    const timestamp =
+      payload.timestamp !== undefined
+        ? this.parseDate(payload.timestamp, 'timestamp')
+        : existingOrder.timestamp;
+
+    if (subtotal < 0) {
+      throw new BadRequestException('subtotal must be greater than or equal to 0');
+    }
+
+    const coordinatesChanged =
+      longitude !== existingOrder.location.longitude || latitude !== existingOrder.location.latitude;
+
+    const taxRateRegion = coordinatesChanged
+      ? (() => {
+          const county = this.resolveCountyByPoint(longitude, latitude);
+          if (!county) {
+            throw new BadRequestException('Coordinates are outside New York county boundaries');
+          }
+
+          const nextTaxRateRegion = this.taxRegionsByCounty.get(county.normalizedCountyName);
+          if (!nextTaxRateRegion) {
+            throw new NotFoundException(
+              `Tax rate region is not configured for ${county.countyName}`,
+            );
+          }
+
+          return nextTaxRateRegion;
+        })()
+      : existingOrder.location.taxRateRegion;
+
+    const shouldRecalculateAmounts = coordinatesChanged || subtotalChanged;
+    const taxAmount = shouldRecalculateAmounts
+      ? this.roundCurrency(subtotal * taxRateRegion.composite_rate)
+      : Number(existingOrder.tax_amount);
+    const totalAmount = shouldRecalculateAmounts
+      ? this.roundCurrency(subtotal + taxAmount)
+      : Number(existingOrder.total_amount);
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        let nextLocationId = existingOrder.locationId;
+
+        if (coordinatesChanged) {
+          const ordersUsingLocation = await tx.order.count({
+            where: {
+              locationId: existingOrder.locationId,
+            },
+          });
+
+          if (ordersUsingLocation > 1) {
+            const createdLocation = await tx.location.create({
+              data: {
+                longitude,
+                latitude,
+                taxRateRegionId: taxRateRegion.id,
+              },
+            });
+
+            nextLocationId = createdLocation.id;
+          } else {
+            await tx.location.update({
+              where: {
+                id: existingOrder.locationId,
+              },
+              data: {
+                longitude,
+                latitude,
+                taxRateRegionId: taxRateRegion.id,
+              },
+            });
+          }
+        }
+
+        const updatedOrder = await tx.order.update({
+          where: {
+            id: orderId,
+          },
+          data: {
+            subtotal: this.toMoneyDecimal(subtotal),
+            tax_amount: this.toMoneyDecimal(taxAmount),
+            total_amount: this.toMoneyDecimal(totalAmount),
+            timestamp,
+            ...(nextLocationId !== existingOrder.locationId ? { locationId: nextLocationId } : {}),
+          },
+          include: {
+            location: {
+              include: {
+                taxRateRegion: {
+                  include: {
+                    jurisdictions: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (nextLocationId !== existingOrder.locationId) {
+          await tx.location.deleteMany({
+            where: {
+              id: existingOrder.locationId,
+              orders: {
+                none: {},
+              },
+            },
+          });
+        }
+
+        return updatedOrder;
+      });
+    } catch (error) {
+      if (this.isRecordNotFoundError(error)) {
+        throw new NotFoundException(`Order with id "${orderId}" not found`);
+      }
+      throw error;
+    }
   }
 
   async getOrders(query: GetOrdersQueryDto) {
@@ -973,6 +1197,14 @@ export class OrdersService implements OnModuleInit {
     return normalized;
   }
 
+  private parseRequiredString(value: string | undefined, label: string) {
+    const normalized = this.parseOptionalString(value, label);
+    if (!normalized) {
+      throw new BadRequestException(`${label} is required`);
+    }
+    return normalized;
+  }
+
   private roundCurrency(value: number) {
     return Number(value.toFixed(2));
   }
@@ -1048,6 +1280,10 @@ export class OrdersService implements OnModuleInit {
 
   private isUniqueConstraintError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+  }
+
+  private isRecordNotFoundError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
   }
 
   private toErrorMessage(error: unknown) {
