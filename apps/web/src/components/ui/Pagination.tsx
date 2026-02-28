@@ -34,7 +34,7 @@ export default function Pagination({
       for (let i = start; i <= end; i++) result.push(i)
     }
 
-    const showLeftEllipsis = currentPage > 4
+    const showLeftEllipsis = currentPage >= 4
     const showRightEllipsis = currentPage < totalPages - 3
 
     result.push(1)
