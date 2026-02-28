@@ -22,15 +22,13 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) { }
 
   @Post()
   async createOrder(@Body() payload: CreateOrderDto) {
     try {
-      console.log(payload);
       return this.ordersService.createOrder(payload);
     } catch (error) {
-      console.error(error);
       throw new BadRequestException(error.message);
     }
   }

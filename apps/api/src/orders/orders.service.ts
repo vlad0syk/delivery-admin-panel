@@ -87,7 +87,7 @@ export class OrdersService implements OnModuleInit {
   private taxRegionsByCounty = new Map<string, TaxRateRegionWithJurisdictions>();
   private bootstrapPromise: Promise<void> | null = null;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async onModuleInit() {
     await this.ensureBootstrap();
@@ -217,20 +217,20 @@ export class OrdersService implements OnModuleInit {
 
     const taxRateRegion = coordinatesChanged
       ? (() => {
-          const county = this.resolveCountyByPoint(longitude, latitude);
-          if (!county) {
-            throw new BadRequestException('Coordinates are outside New York county boundaries');
-          }
+        const county = this.resolveCountyByPoint(longitude, latitude);
+        if (!county) {
+          throw new BadRequestException('Coordinates are outside New York county boundaries');
+        }
 
-          const nextTaxRateRegion = this.taxRegionsByCounty.get(county.normalizedCountyName);
-          if (!nextTaxRateRegion) {
-            throw new NotFoundException(
-              `Tax rate region is not configured for ${county.countyName}`,
-            );
-          }
+        const nextTaxRateRegion = this.taxRegionsByCounty.get(county.normalizedCountyName);
+        if (!nextTaxRateRegion) {
+          throw new NotFoundException(
+            `Tax rate region is not configured for ${county.countyName}`,
+          );
+        }
 
-          return nextTaxRateRegion;
-        })()
+        return nextTaxRateRegion;
+      })()
       : existingOrder.location.taxRateRegion;
 
     const shouldRecalculateAmounts = coordinatesChanged || subtotalChanged;
@@ -331,7 +331,7 @@ export class OrdersService implements OnModuleInit {
     const where: Prisma.OrderWhereInput = {};
 
     if (query.id?.trim()) {
-      where.id = query.id.trim();
+      where.id = { startsWith: query.id.trim() };
     }
 
     if (query.dateFrom || query.dateTo) {
@@ -668,37 +668,37 @@ export class OrdersService implements OnModuleInit {
       const existing = existingByName.get(trimmedCountyName);
       const savedRegion = existing
         ? await this.prisma.taxRateRegion.update({
-            where: { id: existing.id },
-            data: {
-              ...regionPayload,
-              jurisdictions: {
-                deleteMany: {},
-                create: jurisdictions.map((jurisdiction) => ({
-                  name: jurisdiction.name,
-                  type: jurisdiction.type,
-                  rate: jurisdiction.rate,
-                })),
-              },
+          where: { id: existing.id },
+          data: {
+            ...regionPayload,
+            jurisdictions: {
+              deleteMany: {},
+              create: jurisdictions.map((jurisdiction) => ({
+                name: jurisdiction.name,
+                type: jurisdiction.type,
+                rate: jurisdiction.rate,
+              })),
             },
-            include: {
-              jurisdictions: true,
-            },
-          })
+          },
+          include: {
+            jurisdictions: true,
+          },
+        })
         : await this.prisma.taxRateRegion.create({
-            data: {
-              ...regionPayload,
-              jurisdictions: {
-                create: jurisdictions.map((jurisdiction) => ({
-                  name: jurisdiction.name,
-                  type: jurisdiction.type,
-                  rate: jurisdiction.rate,
-                })),
-              },
+          data: {
+            ...regionPayload,
+            jurisdictions: {
+              create: jurisdictions.map((jurisdiction) => ({
+                name: jurisdiction.name,
+                type: jurisdiction.type,
+                rate: jurisdiction.rate,
+              })),
             },
-            include: {
-              jurisdictions: true,
-            },
-          });
+          },
+          include: {
+            jurisdictions: true,
+          },
+        });
 
       updatedTaxRegionsByCounty.set(this.normalizeCountyName(trimmedCountyName), savedRegion);
     }
@@ -751,7 +751,7 @@ export class OrdersService implements OnModuleInit {
       await parser.destroy();
     }
   }
-  
+
   private shouldSkipPublication718Line(line: string): boolean {
     return (
       /^Publication 718/i.test(line) ||
@@ -788,7 +788,7 @@ export class OrdersService implements OnModuleInit {
       /^New York State only\s+/i.test(line)
     );
   }
-  
+
   private cleanPublicationCountyLabel(value: string): string {
     return value
       .replace(/^\*/, '')
@@ -796,10 +796,10 @@ export class OrdersService implements OnModuleInit {
       .replace(/\s+/g, ' ')
       .trim();
   }
-  
+
   private parsePublicationRate(rawRate: string): number {
     const normalized = rawRate.replace(/\s+/g, '');
-  
+
     const unicodeFractions: Record<string, number> = {
       '⅛': 0.125,
       '¼': 0.25,
@@ -809,27 +809,27 @@ export class OrdersService implements OnModuleInit {
       '¾': 0.75,
       '⅞': 0.875,
     };
-  
+
     const unicodeMatch = normalized.match(/^(\d+)([⅛¼⅜½⅝¾⅞])?$/u);
     if (unicodeMatch) {
       const whole = Number(unicodeMatch[1]);
       const fraction = unicodeMatch[2] ? unicodeFractions[unicodeMatch[2]] : 0;
       return this.roundRate((whole + fraction) / 100);
     }
-  
+
     const asciiMatch = rawRate.trim().match(/^(\d+)\s+(\d+)\/(\d+)$/);
     if (asciiMatch) {
       const whole = Number(asciiMatch[1]);
       const numerator = Number(asciiMatch[2]);
       const denominator = Number(asciiMatch[3]);
-  
+
       if (denominator === 0) {
         throw new Error(`Invalid rate fraction: ${rawRate}`);
       }
-  
+
       return this.roundRate((whole + numerator / denominator) / 100);
     }
-  
+
     throw new Error(`Unable to parse tax rate "${rawRate}" from pub718.pdf`);
   }
 
@@ -850,15 +850,15 @@ export class OrdersService implements OnModuleInit {
 
   private async parseTaxDatasetFromPdf(raw: Buffer): Promise<TaxRateDataset> {
     const text = await this.extractPublication718Text(raw);
-  
+
     const lines = text
       .split(/\r?\n/)
       .map((line) => line.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim())
       .filter(Boolean);
-  
+
     const stateRate = 0.04;
     const mctdRate = 0.00375;
-  
+
     const boroughCountyNames = new Set(['bronx', 'kings', 'new york', 'queens', 'richmond']);
     const mctdCounties = new Set([
       'bronx',
@@ -874,87 +874,87 @@ export class OrdersService implements OnModuleInit {
       'suffolk',
       'westchester',
     ]);
-  
+
     const parsedRates = new Map<string, { displayName: string; compositeRate: number }>();
     let newYorkCityCompositeRate: number | null = null;
-  
+
     for (const line of lines) {
       if (this.shouldSkipPublication718Line(line)) {
         continue;
       }
-  
+
       if (/\(city\)/i.test(line)) {
         continue;
       }
-  
+
       if (/see\s+New York City/i.test(line)) {
         const aliasRaw = line.split(/\s+[—–-]\s+see\s+New York City/i)[0] ?? '';
         const aliasDisplayName = this.cleanPublicationCountyLabel(aliasRaw);
         const aliasNormalized = this.normalizeCountyName(aliasDisplayName);
-  
+
         if (boroughCountyNames.has(aliasNormalized)) {
           parsedRates.set(aliasNormalized, {
             displayName: aliasDisplayName,
             compositeRate: -1, // тимчасово, нижче підставимо NYC rate
           });
         }
-  
+
         continue;
       }
-  
+
       const rowMatch = line.match(
         /^\*?(.+?)(?:\s+[—–-]\s+except)?\s+([0-9]+(?:[⅛¼⅜½⅝¾⅞]|\s+\d+\/\d+)?)\s+\d{4}$/u,
       );
-  
+
       if (!rowMatch) {
         continue;
       }
-  
+
       const rawName = rowMatch[1];
       const rawRate = rowMatch[2];
-  
+
       const displayName = this.cleanPublicationCountyLabel(rawName);
       const normalizedCountyName = this.normalizeCountyName(displayName);
       const compositeRate = this.parsePublicationRate(rawRate);
-  
+
       if (normalizedCountyName === 'new york city') {
         newYorkCityCompositeRate = compositeRate;
         continue;
       }
-  
+
       // Ігноруємо borough aliases типу Brooklyn / Manhattan / Staten Island,
       // якщо вони раптом трапились як окремі рядки.
       if (['brooklyn', 'manhattan', 'staten island'].includes(normalizedCountyName)) {
         continue;
       }
-  
+
       parsedRates.set(normalizedCountyName, {
         displayName,
         compositeRate,
       });
     }
-  
+
     if (newYorkCityCompositeRate === null) {
       throw new Error('Unable to find "New York City" rate in pub718.pdf');
     }
-  
+
     for (const countyName of ['Bronx', 'Kings', 'New York', 'Queens', 'Richmond']) {
       parsedRates.set(this.normalizeCountyName(countyName), {
         displayName: countyName,
         compositeRate: newYorkCityCompositeRate,
       });
     }
-  
+
     const result: TaxRateDataset = {};
-  
+
     for (const [normalizedCountyName, entry] of parsedRates.entries()) {
       if (entry.compositeRate < 0) {
         entry.compositeRate = newYorkCityCompositeRate;
       }
-  
+
       const specialRate = mctdCounties.has(normalizedCountyName) ? mctdRate : 0;
       const countyRate = this.roundRate(entry.compositeRate - stateRate - specialRate);
-  
+
       result[entry.displayName] = {
         composite_rate: this.roundRate(entry.compositeRate),
         state_rate: stateRate,
@@ -962,7 +962,7 @@ export class OrdersService implements OnModuleInit {
         special_rate: specialRate,
       };
     }
-  
+
     return result;
   }
 

@@ -57,7 +57,7 @@ export default function StatsSection() {
   const [stats, setStats] = useState<OrdersStats | null>(null)
 
   useEffect(() => {
-    const load = () => { fetchStats().then(setStats).catch(() => {}) }
+    const load = () => { fetchStats().then(setStats).catch(() => { }) }
     load()
 
     window.addEventListener(ORDERS_UPDATED_EVENT, load)
@@ -93,14 +93,12 @@ export default function StatsSection() {
 
   return (
     <section className="max-w-300 mx-auto px-6 pt-6">
-      {/* MOBILE: carousel */}
       <div className="sm:hidden">
         <div
           ref={scrollerRef}
           className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth pr-1
                      [-ms-overflow-style:none] [scrollbar-width:none]"
         >
-          {/* hide scrollbar (webkit) */}
           <style>{`
             .hide-scrollbar::-webkit-scrollbar { display: none; }
           `}</style>
@@ -112,7 +110,6 @@ export default function StatsSection() {
           ))}
         </div>
 
-        {/* dots */}
         <div className="mt-3 flex justify-center gap-2">
           {items.map((_, i) => (
             <button
@@ -120,15 +117,13 @@ export default function StatsSection() {
               type="button"
               aria-label={`Go to slide ${i + 1}`}
               onClick={() => scrollTo(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === active ? "w-6 bg-blue-600" : "w-2 bg-gray-300"
-              }`}
+              className={`h-1.5 rounded-full transition-all ${i === active ? "w-6 bg-blue-600" : "w-2 bg-gray-300"
+                }`}
             />
           ))}
         </div>
       </div>
 
-      {/* DESKTOP/TABLET: grid */}
       <div className="hidden sm:grid grid-cols-2 gap-4 lg:grid-cols-4">
         {items.map((item) => (
           <StatCard key={item.label} {...item} />

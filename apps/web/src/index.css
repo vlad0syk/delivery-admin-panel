@@ -15,3 +15,10 @@ body {
 #root {
   height: 100%;
 }
+
+button,
+select,
+input[type="file"],
+[role="button"] {
+  cursor: pointer;
+}
