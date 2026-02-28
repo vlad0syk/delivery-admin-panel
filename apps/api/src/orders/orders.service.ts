@@ -592,32 +592,38 @@ export class OrdersService implements OnModuleInit {
     const errors: ImportOrderRowError[] = [];
     let imported = 0;
     let processed = 0;
+    const chunkSize = 1000;
 
-    for (let i = firstDataRowIndex; i < rows.length; i += 1) {
-      const { line, lineNumber } = rows[i];
-      processed += 1;
+    for (let i = firstDataRowIndex; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
 
-      const rowDto = this.splitCsvLine(line);
-      if (!rowDto) {
-        errors.push({
-          line: lineNumber,
-          message: 'Invalid row format. Expected 5 columns: id,longitude,latitude,timestamp,subtotal',
-        });
-        continue;
-      }
+      await Promise.all(
+        chunk.map(async ({ line, lineNumber }) => {
+          processed += 1;
 
-      const dtoWithGeneratedId = { ...rowDto, id: randomUUID() };
+          const rowDto = this.splitCsvLine(line);
+          if (!rowDto) {
+            errors.push({
+              line: lineNumber,
+              message: 'Invalid row format. Expected 5 columns: id,longitude,latitude,timestamp,subtotal',
+            });
+            return;
+          }
 
-      try {
-        await this.createOrderInternal(dtoWithGeneratedId, true);
-        imported += 1;
-      } catch (error) {
-        errors.push({
-          line: lineNumber,
-          id: dtoWithGeneratedId.id,
-          message: this.toErrorMessage(error),
-        });
-      }
+          const dtoWithGeneratedId = { ...rowDto, id: randomUUID() };
+
+          try {
+            await this.createOrderInternal(dtoWithGeneratedId, true);
+            imported += 1;
+          } catch (error) {
+            errors.push({
+              line: lineNumber,
+              id: dtoWithGeneratedId.id,
+              message: this.toErrorMessage(error),
+            });
+          }
+        }),
+      );
     }
 
     return {
