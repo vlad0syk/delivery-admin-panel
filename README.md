@@ -2,16 +2,28 @@
 
 A comprehensive monorepo project for managing delivery operations, including orders with tax calculations, geolocation-based tax regions, and CSV/PDF import capabilities. The project consists of a NestJS backend REST API and a React frontend admin panel.
 
+## GitHub Repository
+
+**Source code and detailed setup instructions:** [https://github.com/vlad0syk/delivery-admin-panel](https://github.com/vlad0syk/delivery-admin-panel)
+
+The repository contains the full source code for both frontend and backend, along with step-by-step instructions for running the project locally. See [Getting Started](#getting-started) below for a complete guide.
+
+---
+
 ## Live Demo
 
 **Deployed application:** [https://delivery-admin-panel-web.vercel.app/](https://delivery-admin-panel-web.vercel.app/)
 
-### Demo Login Credentials
+### Authentication & Test Account
+
+The admin panel includes JWT-based authentication. Use the following credentials to access the demo:
 
 | Field | Value |
 |-------|-------|
 | **Email** | `test@gmail.com` |
 | **Password** | `Test123456` |
+
+> **Note:** Run `npx prisma db seed` from `apps/api` to create this test user if you run the project locally.
 
 ---
 
@@ -75,6 +87,36 @@ This project is built using modern web development technologies and follows a mo
 - **Filtering & Sorting** — Filter by date range, subtotal, tax amount, tax region; sort by any column
 - **Pagination** — Server-side pagination for large datasets
 - **Responsive UI** — Mobile-friendly layout with adaptive tables and cards
+
+---
+
+## Problem Statement & Adopted Solutions
+
+### Problem Domain
+
+The project addresses the need for an admin panel to manage delivery orders with **location-based sales tax calculation**. Tax rates in the US vary by jurisdiction (state, county, city, special districts), so the system must:
+
+1. Determine the tax region from delivery coordinates (latitude/longitude)
+2. Apply the correct composite tax rate to the order subtotal
+3. Support bulk import of orders from external sources (CSV, PDF)
+
+### Key Challenges & Solutions
+
+| Challenge | Solution |
+|-----------|----------|
+| **Geolocation → Tax Region** | New York state county boundaries are loaded from GeoJSON. A point-in-polygon algorithm (`resolveCountyByPoint`) determines which county contains the given coordinates. Tax rates are pre-loaded from `taxes.json` (per-county composite, state, county, city, special rates). |
+| **Tax Calculation** | On order create/update, the system uses `subtotal × composite_rate` and rounds to 2 decimal places. The composite rate is the sum of applicable jurisdiction rates for that location. |
+| **Bulk Import** | CSV import expects columns: `id`, `latitude`, `longitude`, `subtotal`, `timestamp`. PDF import uses `pdf-parse` to extract tabular data. Each row is validated; invalid rows are reported with line number and error message. |
+| **Scalability** | Pagination is server-side. Order deletion uses chunked batch deletes (1,000 per batch) to avoid timeouts. Tax regions and county GeoJSON are cached in memory at startup for fast lookups. |
+| **Authentication** | JWT tokens with HTTP-only cookies for XSS protection. Passport.js + bcrypt for login; JWT guard protects `/orders`, `/auth/me` endpoints. |
+| **CORS & Credentials** | CORS is configured with explicit origins (Vercel frontend, localhost). `credentials: true` enables cookie-based sessions across domains. |
+
+### Architecture Decisions
+
+- **Monorepo (Turborepo)** — Shared tooling, single CI, coordinated releases.
+- **Prisma ORM** — Type-safe queries, migrations, and schema management.
+- **NestJS** — Modular structure, built-in validation, guards, and dependency injection.
+- **React + Vite** — Fast dev server, small bundle, modern tooling.
 
 ---
 
@@ -299,7 +341,7 @@ The web app is configured for Vercel with `apps/web/vercel.json`:
 
 ### Backend
 
-The API can be deployed to any Node.js host (Railway, Render, Heroku, etc.) with:
+The API can also be deployed to Railway, Render, Fly.io, etc. with:
 
 - `DATABASE_URL` pointing to a PostgreSQL instance
 - `JWT_SECRET` set to a secure random string
