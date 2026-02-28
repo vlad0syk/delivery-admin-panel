@@ -18,6 +18,7 @@ import {
   notifyOrdersUpdated,
   ORDERS_UPDATED_EVENT,
 } from "@/api"
+import { showToast } from "@/toast"
 
 type OrderData = {
   orderId: string
@@ -208,7 +209,13 @@ export default function OrdersTable() {
     if (!deleteTarget) return
     setIsDeleting(true)
     try {
+      const deletedOrderId = deleteTarget.orderId
       await apiDeleteOrder(deleteTarget.orderId)
+      showToast({
+        title: "Item deleted",
+        message: `Order ${deletedOrderId} has been removed`,
+        variant: "delete",
+      })
       notifyOrdersUpdated()
       setDeleteTarget(null)
     } catch (err) {
@@ -222,7 +229,13 @@ export default function OrdersTable() {
   const handleDeleteAll = async () => {
     setIsDeletingAll(true)
     try {
+      const deletedCount = totalResults
       await apiDeleteAllOrders()
+      showToast({
+        title: "All items deleted",
+        message: `${deletedCount} orders removed | cannot be undone`,
+        variant: "delete-all",
+      })
       notifyOrdersUpdated()
       setShowDeleteAll(false)
       setPage(1)
