@@ -17,8 +17,8 @@ export class AuthController {
 
         res.cookie(COOKIE_NAME, access_token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            secure: true,
+            sameSite: 'none',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             path: '/',
         });
@@ -29,7 +29,11 @@ export class AuthController {
     @Post('logout')
     @HttpCode(HttpStatus.OK)
     logout(@Res({ passthrough: true }) res: Response) {
-        res.clearCookie(COOKIE_NAME, { path: '/' });
+        res.clearCookie(COOKIE_NAME, {
+            path: '/',
+            secure: true,
+            sameSite: 'none',
+        });
         return { message: 'Logged out' };
     }
 
