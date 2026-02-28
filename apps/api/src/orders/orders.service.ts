@@ -99,21 +99,62 @@ export class OrdersService implements OnModuleInit {
   }
 
   async clearOrders() {
-    const { deletedOrders, deletedLocations } = await this.prisma.$transaction(async (tx) => {
-      const deletedOrdersResult = await tx.order.deleteMany();
-      const deletedLocationsResult = await tx.location.deleteMany({
+    let deletedOrders = 0;
+    let deletedLocations = 0;
+    const chunkSize = 1000;
+
+    // Delete orders in chunks
+    while (true) {
+      const ordersChunk = await this.prisma.order.findMany({
+        select: { id: true },
+        take: chunkSize,
+      });
+
+      if (ordersChunk.length === 0) {
+        break;
+      }
+
+      const orderIds = ordersChunk.map((o) => o.id);
+
+      const result = await this.prisma.order.deleteMany({
+        where: {
+          id: {
+            in: orderIds,
+          },
+        },
+      });
+
+      deletedOrders += result.count;
+    }
+
+    // Delete orphaned locations in chunks
+    while (true) {
+      const locationsChunk = await this.prisma.location.findMany({
         where: {
           orders: {
             none: {},
           },
         },
+        select: { id: true },
+        take: chunkSize,
       });
 
-      return {
-        deletedOrders: deletedOrdersResult.count,
-        deletedLocations: deletedLocationsResult.count,
-      };
-    });
+      if (locationsChunk.length === 0) {
+        break;
+      }
+
+      const locationIds = locationsChunk.map((l) => l.id);
+
+      const result = await this.prisma.location.deleteMany({
+        where: {
+          id: {
+            in: locationIds,
+          },
+        },
+      });
+
+      deletedLocations += result.count;
+    }
 
     return {
       deletedOrders,
