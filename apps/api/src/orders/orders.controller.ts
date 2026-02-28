@@ -2,7 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -14,6 +17,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('orders')
@@ -39,6 +43,21 @@ export class OrdersController {
   @Get('stats')
   async getStats() {
     return this.ordersService.getStats();
+  }
+
+  @Delete()
+  async clearOrders() {
+    return this.ordersService.clearOrders();
+  }
+
+  @Delete(':id')
+  async deleteOrder(@Param('id') id: string) {
+    return this.ordersService.deleteOrder(id);
+  }
+
+  @Patch(':id')
+  async updateOrder(@Param('id') id: string, @Body() payload: UpdateOrderDto) {
+    return this.ordersService.updateOrder(id, payload);
   }
 
   @Post('import')
