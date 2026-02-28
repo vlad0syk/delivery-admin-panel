@@ -3,13 +3,13 @@
 import { useRef, useState } from "react"
 import { ImagePlus } from "lucide-react"
 import { importOrders, notifyOrdersUpdated } from "@/api"
+import { showToast } from "@/toast"
 
 export default function ImportSection() {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const openFileDialog = () => {
@@ -22,13 +22,14 @@ export default function ImportSection() {
   const importFile = async (file: File) => {
     setIsUploading(true)
     setError(null)
-    setStatus(null)
 
     try {
       const result = await importOrders(file)
-      setStatus(
-        `Imported ${result.imported} of ${result.processed} rows (${result.failed} failed)`,
-      )
+      showToast({
+        title: "CSV imported successfully",
+        message: `${result.imported} orders loaded | ${result.failed} errors`,
+        variant: "import",
+      })
       notifyOrdersUpdated()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to import orders")
@@ -42,7 +43,6 @@ export default function ImportSection() {
     const first = files[0]
     if (!isCsvFile(first)) {
       setError("Please select a CSV file")
-      setStatus(null)
       return
     }
     setFileName(first.name)
@@ -92,9 +92,6 @@ export default function ImportSection() {
           </p>
         ) : null}
         {error ? <p className="mt-2 text-xs font-semibold text-red-600">{error}</p> : null}
-        {status ? (
-          <p className="mt-1 text-xs font-semibold text-gray-700">{status}</p>
-        ) : null}
       </div>
     </button>
   )
