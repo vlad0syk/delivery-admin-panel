@@ -1,17 +1,27 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { ChevronDown, Trash2 } from "lucide-react"
 import OrderRow from "./OrderRow"
 import Pagination from "../ui/Pagination"
 import MobileOrderCard from "./MobileOrderCard"
 import Modal from "../ui/Modal"
-import { fetchOrders, ORDERS_UPDATED_EVENT } from "@/api"
+import ConfirmDialog from "../ui/ConfirmDialog"
+import EditOrderModal from "./EditOrderModal"
+import {
+  fetchOrders,
+  deleteOrder as apiDeleteOrder,
+  deleteAllOrders as apiDeleteAllOrders,
+  notifyOrdersUpdated,
+  ORDERS_UPDATED_EVENT,
+} from "@/api"
 
 type OrderData = {
   orderId: string
   locationLine1: string
   locationLine2: string
   subtotal: string
+  rawSubtotal: string
   taxRate: string
   taxAmount: string
   total: string
@@ -40,7 +50,19 @@ export default function OrdersTable() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+
+  const [selectedJurisdiction, setSelectedJurisdiction] = useState("")
+  const [jurisdictions, setJurisdictions] = useState<string[]>([])
+
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null)
+
+  const [deleteTarget, setDeleteTarget] = useState<OrderData | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const [showDeleteAll, setShowDeleteAll] = useState(false)
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
+
+  const [editTarget, setEditTarget] = useState<OrderData | null>(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -71,6 +93,7 @@ export default function OrdersTable() {
           page,
           limit: PER_PAGE,
           id: debouncedSearch.trim() || undefined,
+          taxRateRegionName: selectedJurisdiction || undefined,
         })
 
         setTotalResults(response.pagination.total)
@@ -83,6 +106,7 @@ export default function OrdersTable() {
             locationLine1: coords,
             locationLine2: order.location.taxRateRegion.name,
             subtotal: formatMoney(order.subtotal),
+            rawSubtotal: String(order.subtotal),
             taxRate: formatTaxRate(order.location.taxRateRegion.composite_rate),
             taxAmount: formatMoney(order.tax_amount),
             total: formatMoney(order.total_amount),
@@ -90,6 +114,12 @@ export default function OrdersTable() {
         })
 
         setOrders(mapped)
+
+        const names = new Set(response.data.map((o) => o.location.taxRateRegion.name))
+        setJurisdictions((prev) => {
+          const merged = new Set([...prev, ...names])
+          return [...merged].sort()
+        })
 
         if (page > response.pagination.totalPages) {
           setPage(response.pagination.totalPages || 1)
@@ -109,7 +139,37 @@ export default function OrdersTable() {
     return () => {
       controller.abort()
     }
-  }, [page, debouncedSearch, refreshToken])
+  }, [page, debouncedSearch, selectedJurisdiction, refreshToken])
+
+  const handleDeleteOne = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      await apiDeleteOrder(deleteTarget.orderId)
+      notifyOrdersUpdated()
+      setDeleteTarget(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete order")
+      setDeleteTarget(null)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true)
+    try {
+      await apiDeleteAllOrders()
+      notifyOrdersUpdated()
+      setShowDeleteAll(false)
+      setPage(1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete orders")
+      setShowDeleteAll(false)
+    } finally {
+      setIsDeletingAll(false)
+    }
+  }
 
   const rangeText = useMemo(() => {
     if (!orders.length) {
@@ -137,18 +197,46 @@ export default function OrdersTable() {
               }}
               className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none sm:w-64"
             />
-            <select
-              aria-label="Filter by jurisdiction"
-              className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none sm:w-44"
-            >
-              <option>All Jurisdictions</option>
-            </select>
+            <div className="relative w-full sm:w-48">
+              <select
+                aria-label="Filter by jurisdiction"
+                value={selectedJurisdiction}
+                onChange={(e) => {
+                  setSelectedJurisdiction(e.target.value)
+                  setPage(1)
+                }}
+                className="h-10 w-full appearance-none rounded border border-gray-200 px-3 pr-9 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">All Jurisdictions</option>
+                {jurisdictions.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
+            {totalResults > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowDeleteAll(true)}
+                className="flex h-10 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 sm:w-auto"
+                title="Delete all orders"
+              >
+                <Trash2 size={15} />
+                <span className="sm:hidden lg:inline">Delete All</span>
+              </button>
+            ) : null}
           </div>
         </div>
 
         <div className="space-y-3 p-4 md:hidden">
           {orders.map((order) => (
-            <MobileOrderCard key={order.orderId} {...order} onViewDetails={() => setSelectedOrder(order)} />
+            <MobileOrderCard
+              key={order.orderId}
+              {...order}
+              onViewDetails={() => setSelectedOrder(order)}
+              onEdit={() => setEditTarget(order)}
+              onDelete={() => setDeleteTarget(order)}
+            />
           ))}
         </div>
 
@@ -165,7 +253,13 @@ export default function OrdersTable() {
 
           <div>
             {orders.map((order) => (
-              <OrderRow key={order.orderId} {...order} onViewDetails={() => setSelectedOrder(order)} />
+              <OrderRow
+                key={order.orderId}
+                {...order}
+                onViewDetails={() => setSelectedOrder(order)}
+                onEdit={() => setEditTarget(order)}
+                onDelete={() => setDeleteTarget(order)}
+              />
             ))}
           </div>
         </div>
@@ -213,21 +307,6 @@ export default function OrdersTable() {
               <p className="mt-1 text-sm text-gray-500 sm:text-base">{selectedOrder.locationLine2}</p>
             </div>
 
-            <div className="grid gap-3 border-b border-gray-200 pb-4 sm:grid-cols-2">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Jurisdiction</p>
-                <p className="mt-1.5 text-base font-medium tracking-tight text-gray-950 sm:text-lg">
-                  New York County
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Date</p>
-                <p className="mt-1.5 text-base font-medium tracking-tight text-gray-950 sm:text-lg">
-                  February 27, 2026
-                </p>
-              </div>
-            </div>
-
             <div>
               <h3 className="text-lg font-medium tracking-tight text-gray-950">
                 Financial Summary
@@ -263,6 +342,37 @@ export default function OrdersTable() {
           </div>
         ) : null}
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete Order"
+        message={`Are you sure you want to delete order ${deleteTarget?.orderId ?? ""}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleDeleteOne}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteAll}
+        title="Delete All Orders"
+        message={`Are you sure you want to delete all ${totalResults} orders? This action cannot be undone.`}
+        confirmLabel="Delete All"
+        variant="danger"
+        isLoading={isDeletingAll}
+        onConfirm={handleDeleteAll}
+        onCancel={() => setShowDeleteAll(false)}
+      />
+
+      <EditOrderModal
+        isOpen={editTarget !== null}
+        orderId={editTarget?.orderId ?? ""}
+        initialLatitude={editTarget?.locationLine1.split(",")[0]?.trim() ?? ""}
+        initialLongitude={editTarget?.locationLine1.split(",")[1]?.trim() ?? ""}
+        initialSubtotal={editTarget?.rawSubtotal ?? ""}
+        onClose={() => setEditTarget(null)}
+      />
     </section>
   )
 }

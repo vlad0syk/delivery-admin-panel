@@ -68,11 +68,12 @@ export interface OrdersResponse {
   pagination: OrdersPagination
 }
 
-export async function fetchOrders(params: { page?: number; limit?: number; id?: string }) {
+export async function fetchOrders(params: { page?: number; limit?: number; id?: string; taxRateRegionName?: string }) {
   const search = new URLSearchParams()
   if (params.page != null) search.set("page", String(params.page))
   if (params.limit != null) search.set("limit", String(params.limit))
   if (params.id) search.set("id", params.id)
+  if (params.taxRateRegionName) search.set("taxRateRegionName", params.taxRateRegionName)
 
   const query = search.toString()
   const path = `/orders${query ? `?${query}` : ""}`
@@ -110,6 +111,28 @@ export async function importOrders(file: File) {
   return request<ImportOrdersResult>("/orders/import", {
     method: "POST",
     body: formData,
+  })
+}
+
+export async function deleteOrder(id: string) {
+  return request<void>(`/orders/${id}`, { method: "DELETE" })
+}
+
+export async function deleteAllOrders() {
+  return request<void>("/orders", { method: "DELETE" })
+}
+
+export interface UpdateOrderPayload {
+  latitude?: number
+  longitude?: number
+  subtotal?: number
+  timestamp?: string
+}
+
+export async function updateOrder(id: string, payload: UpdateOrderPayload) {
+  return request<Order>(`/orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   })
 }
 
