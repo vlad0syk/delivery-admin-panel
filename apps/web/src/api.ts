@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
+console.log("VITE_API_URL:", import.meta.env.VITE_API_URL, "API_BASE:", API_BASE);
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: HeadersInit = new Headers({
