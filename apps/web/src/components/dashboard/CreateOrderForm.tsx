@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from "react"
+import { useRef, useState } from "react"
+import type { ChangeEvent } from "react"
 import { createOrder, notifyOrdersUpdated } from "@/api"
 import { showToast } from "@/toast"
 
@@ -16,18 +17,23 @@ export default function CreateOrderForm() {
 
   const onCoordChange =
     (setter: (value: string) => void) =>
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    (event: ChangeEvent<HTMLInputElement>) => {
       const next = event.target.value.replace(/\s+/g, "")
       if (next === "" || COORD_REGEX.test(next)) {
         setter(next)
       }
     }
 
-  const onMoneyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onMoneyChange = (event: ChangeEvent<HTMLInputElement>) => {
     const next = event.target.value.replace(/\s+/g, "")
     if (next === "" || MONEY_REGEX.test(next)) {
       setSubtotal(next)
     }
+  }
+
+  const openErrorModal = (messages: string[]) => {
+    setErrorMessages(messages)
+    setIsErrorModalOpen(true)
   }
 
   const handleSubmit = async () => {
@@ -50,7 +56,9 @@ export default function CreateOrderForm() {
       })
       notifyOrdersUpdated()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create order")
+      const message =
+        err instanceof Error ? err.message : "Failed to create order"
+      openErrorModal([message])
     } finally {
       setIsSubmitting(false)
     }
@@ -74,6 +82,7 @@ export default function CreateOrderForm() {
           type="text"
           inputMode="decimal"
           value={latitude}
+          ref={latInputRef}
           onChange={onCoordChange(setLatitude)}
           className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 outline-none transition focus:border-blue-300"
         />
@@ -85,6 +94,7 @@ export default function CreateOrderForm() {
           type="text"
           inputMode="decimal"
           value={longitude}
+          ref={lngInputRef}
           onChange={onCoordChange(setLongitude)}
           className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 outline-none transition focus:border-blue-300"
         />
@@ -96,6 +106,7 @@ export default function CreateOrderForm() {
           type="text"
           inputMode="decimal"
           value={subtotal}
+          ref={subtotalInputRef}
           onChange={onMoneyChange}
           className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 outline-none transition focus:border-blue-300"
         />
@@ -110,6 +121,24 @@ export default function CreateOrderForm() {
       >
         {isSubmitting ? "Creating..." : "Create Order"}
       </button>
+
+      <CreateOrderErrorModal
+        isOpen={isErrorModalOpen}
+        errors={errorMessages}
+        onClose={() => setIsErrorModalOpen(false)}
+        onFix={() => {
+          setIsErrorModalOpen(false)
+
+          const firstError = errorMessages[0]?.toLowerCase() ?? ""
+          if (firstError.includes("latitude")) {
+            latInputRef.current?.focus()
+          } else if (firstError.includes("longitude")) {
+            lngInputRef.current?.focus()
+          } else if (firstError.includes("subtotal")) {
+            subtotalInputRef.current?.focus()
+          }
+        }}
+      />
     </form>
   )
 }
