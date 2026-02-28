@@ -10,6 +10,9 @@ type OrderRowProps = {
   taxRate: string
   taxAmount: string
   total: string
+  timestamp: string
+  isSelected: boolean
+  onToggleSelect: () => void
   onViewDetails: () => void
   onEdit: () => void
   onDelete: () => void
@@ -23,13 +26,25 @@ export default function OrderRow({
   taxRate,
   taxAmount,
   total,
+  timestamp,
+  isSelected,
+  onToggleSelect,
   onViewDetails,
   onEdit,
   onDelete,
 }: OrderRowProps) {
   return (
-    <div className="grid grid-cols-[1.1fr_2fr_repeat(4,minmax(0,1fr))_1.4fr] items-center border-b border-gray-200 px-4 py-3 text-sm last:border-b-0 md:px-5">
-      <div className="font-semibold text-gray-900">{orderId}</div>
+    <div className="grid grid-cols-[auto_1.1fr_1.6fr_repeat(4,minmax(0,1fr))_0.9fr_1.2fr] items-center border-b border-gray-200 px-4 py-3 text-sm last:border-b-0 md:px-5">
+      <div className="pr-3">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onToggleSelect}
+          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="truncate font-semibold text-gray-900">{orderId}</div>
 
       <div className="space-y-0.5">
         <div className="text-gray-800">{locationLine1}</div>
@@ -40,8 +55,9 @@ export default function OrderRow({
       <div className="font-semibold text-gray-800">{taxRate}</div>
       <div className="font-semibold text-gray-800">{taxAmount}</div>
       <div className="font-semibold text-gray-900">{total}</div>
+      <div className="text-xs text-gray-500">{timestamp}</div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onViewDetails}
