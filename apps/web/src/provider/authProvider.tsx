@@ -22,7 +22,10 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
     const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
 
     useEffect(() => {
-        axios.get(`${API_BASE}/auth/me`)
+        const token = localStorage.getItem('access_token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        axios.get(`${API_BASE}/auth/me`, { headers })
             .then((res) => {
                 setIsAuthenticated(true);
                 setEmail(res.data?.email ?? null);
@@ -37,9 +40,13 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const logout = useCallback(() => {
-        axios.post(`${API_BASE}/auth/logout`)
+        const token = localStorage.getItem('access_token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        axios.post(`${API_BASE}/auth/logout`, {}, { headers })
             .catch(() => { })
             .finally(() => {
+                localStorage.removeItem('access_token');
                 setIsAuthenticated(false);
                 setEmail(null);
             });

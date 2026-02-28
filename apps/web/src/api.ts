@@ -2,7 +2,6 @@ const envUrl = import.meta.env.VITE_API_URL;
 const API_BASE = envUrl
   ? envUrl.replace(/\/$/, '')
   : '/api';
-console.log("Resolved API_BASE:", API_BASE);
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: HeadersInit = new Headers({
@@ -11,6 +10,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!(init?.body instanceof FormData)) {
     headers.set("Content-Type", "application/json")
+  }
+
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   const response = await fetch(`${API_BASE}${path}`, {
