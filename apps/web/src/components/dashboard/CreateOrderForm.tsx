@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { createOrder, notifyOrdersUpdated } from "@/api"
+import { showToast } from "@/toast"
 
 const COORD_REGEX = /^-?\d*[.,]?\d*$/
 const MONEY_REGEX = /^\d*[.,]?\d{0,2}$/
@@ -12,7 +13,6 @@ export default function CreateOrderForm() {
   const [subtotal, setSubtotal] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   const onCoordChange =
     (setter: (value: string) => void) =>
@@ -33,20 +33,21 @@ export default function CreateOrderForm() {
   const handleSubmit = async () => {
     if (!latitude || !longitude || !subtotal) {
       setError("Please fill in all fields")
-      setSuccess(null)
       return
     }
 
     setIsSubmitting(true)
     setError(null)
-    setSuccess(null)
 
     try {
-      await createOrder({ latitude, longitude, subtotal })
+      const order = await createOrder({ latitude, longitude, subtotal })
       setLatitude("")
       setLongitude("")
       setSubtotal("")
-      setSuccess("Order created successfully")
+      showToast({
+        title: "Order created",
+        message: `lat ${order.location.latitude.toFixed(4)} | lng ${order.location.longitude.toFixed(4)} | $${Number(order.subtotal).toFixed(2)}`,
+      })
       notifyOrdersUpdated()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create order")
@@ -101,7 +102,6 @@ export default function CreateOrderForm() {
       </label>
 
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
-      {success ? <p className="mt-2 text-sm text-green-600">{success}</p> : null}
 
       <button
         type="submit"
