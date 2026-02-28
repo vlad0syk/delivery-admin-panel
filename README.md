@@ -316,7 +316,3 @@ The API can be deployed to any Node.js host (Railway, Render, Heroku, etc.) with
 - **Jurisdiction** — Jurisdiction-level tax rates (state, county, city, special)
 
 ---
-
-## License
-
-UNLICENSED
