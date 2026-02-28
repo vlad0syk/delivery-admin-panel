@@ -212,6 +212,7 @@ export default function OrdersTable() {
     if (!deleteTarget) return
     setIsDeleting(true)
     try {
+      const deletedOrderId = deleteTarget.orderId
       await apiDeleteOrder(deleteTarget.orderId)
       showToast({ title: "Order deleted", message: `Order ${deleteTarget.orderId} was deleted` })
       notifyOrdersUpdated()
@@ -227,6 +228,7 @@ export default function OrdersTable() {
   const handleDeleteAll = async () => {
     setIsDeletingAll(true)
     try {
+      const deletedCount = totalResults
       await apiDeleteAllOrders()
       showToast({ title: "All orders deleted", message: `${totalResults} orders were deleted` })
       notifyOrdersUpdated()
