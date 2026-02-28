@@ -19,8 +19,10 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [email, setEmail] = useState<string | null>(null);
 
+    const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
+
     useEffect(() => {
-        axios.get("/api/auth/me")
+        axios.get(`${API_BASE}/auth/me`)
             .then((res) => {
                 setIsAuthenticated(true);
                 setEmail(res.data?.email ?? null);
@@ -35,7 +37,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const logout = useCallback(() => {
-        axios.post("/api/auth/logout")
+        axios.post(`${API_BASE}/auth/logout`)
             .catch(() => { })
             .finally(() => {
                 setIsAuthenticated(false);

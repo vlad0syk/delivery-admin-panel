@@ -26,7 +26,8 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await axios.post("/api/auth/login", { email, password })
+      const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
+      await axios.post(`${API_BASE}/auth/login`, { email, password })
       login(email)
     } catch (err: any) {
       setError(err.response?.data?.message ?? "Login failed. Please try again.")
