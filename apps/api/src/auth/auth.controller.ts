@@ -23,7 +23,7 @@ export class AuthController {
             path: '/',
         });
 
-        return { message: 'Login successful' };
+        return { message: 'Login successful', access_token };
     }
 
     @Post('logout')
