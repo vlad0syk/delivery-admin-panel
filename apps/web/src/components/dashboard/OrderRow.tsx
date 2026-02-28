@@ -34,7 +34,7 @@ export default function OrderRow({
   onDelete,
 }: OrderRowProps) {
   return (
-    <div className="grid grid-cols-[auto_1.1fr_1.6fr_repeat(4,minmax(0,1fr))_0.9fr_1.2fr] items-center border-b border-gray-200 px-4 py-3 text-sm last:border-b-0 md:px-5">
+    <div className="grid grid-cols-[auto_1.1fr_1.6fr_repeat(4,minmax(0,1fr))_0.9fr_1.2fr] items-center gap-x-4 border-b border-gray-200 px-4 py-3 text-sm last:border-b-0 md:px-5">
       <div className="pr-3">
         <input
           type="checkbox"

@@ -34,10 +34,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T
 }
 
+export interface Jurisdiction {
+  id: string
+  name: string
+  type: string
+  rate: number
+}
+
 export interface TaxRateRegion {
   id: string
   name: string
   composite_rate: number
+  jurisdictions: Jurisdiction[]
 }
 
 export interface Location {

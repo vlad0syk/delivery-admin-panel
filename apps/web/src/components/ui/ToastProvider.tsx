@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from "react"
-import { CheckCircle2, FileText, X } from "lucide-react"
+import { AlertCircle, CheckCircle2, FileText, X } from "lucide-react"
 import { APP_TOAST_EVENT, type AppToastPayload } from "@/toast"
 
 const TOAST_DURATION_MS = 4200
@@ -87,18 +87,19 @@ export default function ToastProvider() {
     return null
   }
 
-  const Icon = toast.variant === "import" ? FileText : CheckCircle2
+  const Icon = toast.variant === "import" ? FileText : toast.variant === "error" ? AlertCircle : CheckCircle2
   const iconClasses =
     toast.variant === "import"
       ? "bg-blue-100 text-blue-600"
-      : "bg-emerald-100 text-emerald-600"
+      : toast.variant === "error"
+        ? "bg-red-100 text-red-600"
+        : "bg-emerald-100 text-emerald-600"
 
   return (
     <div className="pointer-events-none fixed right-4 top-4 z-50 w-[calc(100vw-2rem)] max-w-[22rem] sm:right-6 sm:top-6">
       <div
-        className={`pointer-events-auto overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.16)] transition-all duration-200 ${
-          isVisible ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
-        }`}
+        className={`pointer-events-auto overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.16)] transition-all duration-200 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
+          }`}
       >
         <div className="flex items-start gap-3 px-4 py-3.5">
           <div
@@ -128,9 +129,8 @@ export default function ToastProvider() {
 
         <div className="h-1 w-full bg-slate-100">
           <div
-            className={`h-full ${
-              toast.variant === "import" ? "bg-blue-500" : "bg-emerald-500"
-            }`}
+            className={`h-full ${toast.variant === "import" ? "bg-blue-500" : toast.variant === "error" ? "bg-red-500" : "bg-emerald-500"
+              }`}
             style={{
               width: `${progress}%`,
               transition: `width ${TOAST_DURATION_MS}ms linear`,
