@@ -1,6 +1,6 @@
 const envUrl = import.meta.env.VITE_API_URL;
 const API_BASE = envUrl
-  ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`)
+  ? envUrl.replace(/\/$/, '')
   : '/api';
 console.log("Resolved API_BASE:", API_BASE);
 
